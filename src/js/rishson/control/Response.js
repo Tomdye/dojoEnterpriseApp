@@ -42,19 +42,21 @@ define([
 
 		/**
 		 * @field
-		 * @name rishson.control.Request.isUnauthorised
+		 * @name rishson.control.Request.isUnauthenticated
 		 * @type {boolean}
-		 * @description is the response indicating that the request was not authorised. This equates to HTTP status code 403.
+		 * @description is the response indicating that the request was from a source that could not
+		 * be authenticated. This equates to HTTP status code 401 (UNAUTHORIZED).
 		 */
-		isUnauthorised: false,
+		isUnauthenticated: false,
 
 		/**
 		 * @field
-		 * @name rishson.control.Request.isServerError
+		 * @name rishson.control.Request.isUnauthorised
 		 * @type {boolean}
-		 * @description is the response indicating that the request was a server error. This equates to HTTP status code 500.
+		 * @description is the response indicating that the request was not authorised.
+		 * This equates to HTTP status code 403 (FORBIDDEN).
 		 */
-		isServerError: false,
+		isUnauthorised: false,
 
 		/**
 		 * @field
@@ -71,7 +73,7 @@ define([
 		 * @type {Array.<number>}
 		 * @description The status codes that are handled in a rishson.control.Response.
 		 */
-		mappedStatusCodes: [200, 400, 403, 409, 500],
+		mappedStatusCodes: [200, 400, 403, 409],
 
 		/**
 		 * @constructor
@@ -102,12 +104,16 @@ define([
 		 * @description convert HTTP status codes into handy response properties and remove payload wrapper if present
 		 */
 		_processHttpStatusCodes: function (response, ioArgs) {
-			switch (ioArgs.xhr.status) {
+			var status = ioArgs.xhr.status;
+			switch (status) {
 			case 200:
 				this.isOk = true;
 				break;
 			case 400:
 				this.isInvalid = true;
+				break;
+			case 401:
+				this.isUnauthenticated = true;
 				break;
 			case 403:
 				this.isUnauthorised = true;
@@ -115,17 +121,23 @@ define([
 			case 409:
 				this.isConflicted = true;
 				break;
-			case 500:
-				this.isServerError = true;
-				break;
 			default:
 				throw ('Unknown status code passed to Response constructor: ' + ioArgs.xhr.status);
 			}
 
-			//if the response just has data in its body, then make it a payload. If a payload is specified in the
+			//If the response just has data in its body, then make it a payload. If a payload is specified in the
 			//response already then just add to this class.
 			if (response) {
-				this.payload = response.payload || response;
+				if (this.isOk) {
+					this.payload = response.payload || response;
+				} else {
+					/*
+					 Non 200 responses do not contain a payload so get response from ioArgs.
+					 This will overwrite an existing payload, however ioArgs
+					 should be the expected response from the server.
+					 */
+					this.payload = ioArgs.xhr.response || null;
+				}
 			}
 		}
 	});
