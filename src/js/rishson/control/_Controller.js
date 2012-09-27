@@ -131,7 +131,11 @@ define([
 
 			if (handlerFuncName && handlerFunc) {
 				// Subscribe to topic and keep a reference to the handle for unsubscribing
-				this.subListHandles[topicName] = this.subscribe(topicName, lang.hitch(this, handlerFunc));
+				// We don't subscribe if we already have a handler (usually happens when multiple children
+				// want to publish the same event)
+				if (!this.subListHandles[topicName]) {
+					this.subListHandles[topicName] = this.subscribe(topicName, lang.hitch(this, handlerFunc));
+				}
 			} else {
 				console.error('Autowire failure for topic: ' + topicName + '. No handler: ' + handlerFuncName);
 			}
