@@ -73,7 +73,7 @@ define([
 		 * @type {Array.<number>}
 		 * @description The status codes that are handled in a rishson.control.Response.
 		 */
-		mappedStatusCodes: [200, 400, 403, 409],
+		mappedStatusCodes: [200, 400, 401, 403, 409],
 
 		/**
 		 * @constructor
