@@ -6,8 +6,10 @@ define([
 	"rishson/control/_Controller", //mixin
 	"dojo/_base/lang", //isArray
 	"dojo/store/Observable",	//constructor
-	"rishson/base/router/Route"
-], function (declare, topic, Base, _Widget, _Controller, lang, Observable, Route) {
+	"rishson/base/router/Route",
+	"rishson/base/router/RouteParser",
+	"rishson/base/router/HashURLModifier"
+], function (declare, topic, Base, _Widget, _Controller, lang, Observable, Route, RouteParser, HashURLModifier) {
 	/**
 	 * @class
 	 * @name rishson.control.ControllerWidget
@@ -115,10 +117,10 @@ define([
 		 */
 		addRoute: function (routeName, params) {
 			// Patch up the params object
-			params.parent = params.parent || this;
+			params.parent = this;
 			params.routeName = routeName;
 
-			this.routes[params.routeName] = this.adopt(Route, params);
+			this.routes[params.routeName] = new Route(params, new RouteParser(new HashURLModifier()));
 		},
 
 		/**

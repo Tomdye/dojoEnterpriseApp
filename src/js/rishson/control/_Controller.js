@@ -36,6 +36,8 @@ define([
 		 */
 		_topicNamespace: '',
 
+		_routes: null,
+
 		/**
 		 * @constructor
 		 */
@@ -48,6 +50,8 @@ define([
 			// An array of topic name / subscription handle pairs
 			// Needed for when the controller wants to unsubscribe from topics
 			this.subListHandles = this.subListHandles || {};
+
+			this._routes = [];
 		},
 
 		/**
@@ -175,6 +179,8 @@ define([
 			this._supportingWidgets.push(child);
 
 			this._autowirePubs(child);
+			child.__parent__ = this;
+
 			return child;
 		}
 	});

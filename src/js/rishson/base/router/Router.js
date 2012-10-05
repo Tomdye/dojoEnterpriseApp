@@ -2,8 +2,8 @@ define([
 	"dojo/_base/declare",
 	"dojo/_base/lang",
 	"dojo/topic",
-	"rishson/base/router/_hashParser"
-], function (declare, lang, topic, parser) {
+	"rishson/base/router/HashURLModifier"
+], function (declare, lang, topic, HashURLModifier) {
 	/**
 	 * @class
 	 * @name rishson.base.router.Router
@@ -54,11 +54,7 @@ define([
 		 * @constructor
 		 */
 		constructor: function (params) {
-			if (lang.isFunction(params.onRouteChange)) {
-				this._onRouteChange = params.onRouteChange;
-			} else {
-				throw new Error("No function: onRouteChange");
-			}
+			this._modifier = new HashURLModifier();
 		},
 
 		/**
@@ -68,20 +64,17 @@ define([
 		 * This should be only ever be called once as subscriptions are application-wide.
 		 */
 		start: function () {
-			// On route change
-			// Called when the URL is manually changed in the browser
 			topic.subscribe(this._routeChangeEvent, lang.hitch(this, function (route) {
 				if (route !== this._lastRoute) {
-					this._onRouteChange(parser.getChild(0));
+					//this._onRouteChange(parser.getChild(0));
 				}
 			}));
 
-			// On route update
-			// Called by the application wanting to silently update the URL
 			topic.subscribe(this._routeUpdateEvent, lang.hitch(this, function (params) {
-				var route = parser.resolveRoute(params.widget, params.parameters);
+				var route = params.route;
+
 				this._lastRoute = route;
-				parser.set(route);
+				this._modifier.set(route);
 			}));
 		}
 	});

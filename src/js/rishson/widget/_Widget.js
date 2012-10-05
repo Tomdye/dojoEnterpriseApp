@@ -42,6 +42,7 @@ define([
 			topic.subscribe(this.subList.WIDGET_ENABLE, lang.hitch(this, "_enable"));
 			topic.subscribe(this.subList.ERROR_CME, lang.hitch(this, "_cmeHandler"));
 			topic.subscribe(this.subList.ERROR_INVALID, lang.hitch(this, "_invalidHandler"));
+
 			this.inherited(arguments);
 		},
 
