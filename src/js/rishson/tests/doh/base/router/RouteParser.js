@@ -2,17 +2,15 @@ define([
 	"doh",
 	"dojo/_base/lang",
 	"rishson/base/router/RouteParser",
-	"rishson/base/router/HashURLModifier",
 	"rishson/base/router/Route",
 	"dojo/json"
-], function (doh, lang, RouteParser, HashURLModifier, Route, json) {
+], function (doh, lang, RouteParser, Route, json) {
 
 	var makeFakeURLModifier = function (getValue) {
-		var TestURLModifier = function () {
-			this.set = function () { return ""; };
-			this.get = function () { return getValue || ""; };
+		return {
+			set: function () {},
+			get: function () { return getValue || ""; }
 		};
-		return new TestURLModifier();
 	};
 
 	doh.register("Hash Parser tests", [
@@ -139,14 +137,14 @@ define([
 			}
 		},
 		{
-			name: "getParameters returns an empty object for a route with no parameters",
+			name: "getParameters returns null for a route with no parameters",
 			runTest: function () {
 				var route = new Route({
 						routeName: "FirstChild"
 					}),
 					parser = new RouteParser(makeFakeURLModifier("FirstChild"));
 
-				doh.assertEqual({}, parser.getParameters(route));
+				doh.assertEqual(null, parser.getParameters(route));
 			}
 		},
 		{
@@ -173,7 +171,7 @@ define([
 			}
 		},
 		{
-			name: "getChildParameters returns empty object for invalid parameters",
+			name: "getChildParameters returns null for invalid parameters",
 			runTest: function () {
 				var firstChild = new Route({ routeName: "FirstChild" }),
 					secondChild = new Route({ routeName: "SecondChild", parentRoute: firstChild }),
@@ -181,7 +179,17 @@ define([
 						'FirstChild/SecondChild=""&id"":#"t3est"}/'
 					));
 
-				doh.assertEqual({}, parser.getParameters(secondChild));
+				doh.assertEqual(null, parser.getParameters(secondChild));
+			}
+		},
+		{
+			name: "getFirstChild returns first child for a nested URL and strips parameters",
+			runTest: function () {
+				var parser = new RouteParser(makeFakeURLModifier(
+						"FirstChild={}/SecondChild/ThirdChild/"
+					));
+
+				doh.assertEqual("FirstChild", parser.getFirstChild());
 			}
 		}
 	]);

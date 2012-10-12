@@ -2,8 +2,10 @@ define([
 	"dojo/_base/declare",
 	"dojo/_base/lang",
 	"dojo/topic",
-	"rishson/base/router/HashURLModifier"
-], function (declare, lang, topic, HashURLModifier) {
+	"rishson/Globals",
+	"rishson/base/router/RouteParser",
+	"rishson/base/router/hashURLModifier"
+], function (declare, lang, topic, Globals, RouteParser, hashUrlModifier) {
 	/**
 	 * @class
 	 * @name rishson.base.router.Router
@@ -11,24 +13,6 @@ define([
 	 * one instance of Router per application.
 	 */
 	return declare('rishson.base.router.Router', null, {
-		/**
-		 * @field
-		 * @name rishson.base.router.Router._routeChangeEvent
-		 * @type {String}
-		 * @private
-		 * @description The event to subscribe to when the route changes
-		 */
-		_routeChangeEvent: "/dojo/hashchange",
-
-		/**
-		 * @field
-		 * @name rishson.base.router.Router._routeUpdateEvent
-		 * @type {String}
-		 * @private
-		 * @description The event to subscribe to when the route needs to be updated
-		 */
-		_routeUpdateEvent: "route/update",
-
 		/**
 		 * @field
 		 * @name rishson.base.router.Router._lastRoute
@@ -50,11 +34,11 @@ define([
 		 */
 		_onRouteChange: null,
 
-		/**
-		 * @constructor
-		 */
+		parser: null,
+
 		constructor: function (params) {
-			this._modifier = new HashURLModifier();
+			this._onRouteChange = params.onRouteChange;
+			this.parser = new RouteParser(hashUrlModifier);
 		},
 
 		/**
@@ -64,17 +48,17 @@ define([
 		 * This should be only ever be called once as subscriptions are application-wide.
 		 */
 		start: function () {
-			topic.subscribe(this._routeChangeEvent, lang.hitch(this, function (route) {
+			topic.subscribe(this.parser.getModifier().CHANGE_EVENT, lang.hitch(this, function (route) {
 				if (route !== this._lastRoute) {
-					//this._onRouteChange(parser.getChild(0));
+					this._onRouteChange(this.parser.getFirstChild());
 				}
 			}));
 
-			topic.subscribe(this._routeUpdateEvent, lang.hitch(this, function (params) {
+			topic.subscribe(Globals.UPDATE_ROUTE, lang.hitch(this, function (params) {
 				var route = params.route;
 
 				this._lastRoute = route;
-				this._modifier.set(route);
+				this.parser.set(route);
 			}));
 		}
 	});

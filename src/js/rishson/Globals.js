@@ -40,4 +40,20 @@ define(["exports"], function (exports) {
 	 * @description This namespace is prepended to every topic name
 	 */
 	exports.SEND_REQUEST = exports.TOPIC_NAMESPACE + "/request/send";
+
+	/**
+	 * @field
+	 * @name rishson.Globals.UPDATE_ROUTE
+	 * @type {string}
+	 * @description The event to subscribe to when the route needs to be updated
+	 */
+	exports.UPDATE_ROUTE = exports.TOPIC_NAMESPACE + "/route/update";
+
+	/**
+	 * @field
+	 * @name rishson.Globals.BUBBLING_CLASS
+	 * @type {string}
+	 * @description A class that can be added to <a> tags to prevent event bubbling
+	 */
+	exports.BUBBLING_CLASS = "no-bubbling";
 });

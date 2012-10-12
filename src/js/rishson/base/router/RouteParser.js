@@ -1,20 +1,16 @@
 define([
 	"dojo/_base/declare",
 	"dojo/_base/lang",
-	"dojo/json",
-	"dojo/io-query",
-	"rishson/base/lang",
-	"dojo/_base/array"
-], function (declare, lang, json, ioQuery, rishsonLang, arrayUtil) {
+	"dojo/json"
+], function (declare, lang, json) {
 	/**
 	 * @class
 	 * @name rishson.base.router.RouterParser
 	 * @description Provides utility functions for reading and setting the hash.
-	 * The general idea of the parser is that it provides an API to deal with
-	 * Widgets as opposed to Strings.
+	 * The general idea of the parser is that it provides an API that deals with
+	 * Routes.
 	 */
-
-		  /**
+		/**
 		 * @field
 		 * @private
 		 * @description Strips any parameters from a child in a route
@@ -27,18 +23,31 @@ define([
 			}
 		},
 
+		/**
+		 * @field
+		 * @private
+		 * @description Deserializes any parameters from a child in a route
+		 */
 		_deserialize = function (string) {
 			try {
 				return json.parse(string);
 			} catch (e) {
-				return {};
+				return null;
 			}
 		};
 
-	return declare('rishson.base.router.HashParser', null, {
-		_itemDelimiter: "/",
+	return declare("rishson.base.router.RouteParser", null, {
+		/**
+		 * @const
+		 * @description
+		 */
+		ITEM_DELIMITER: "/",
 
-		_parameterDelimiter: "=",
+		/**
+		 * @const
+		 * @description
+		 */
+		PARAM_DELIMITER: "=",
 
 		/**
 		 * @field
@@ -47,6 +56,10 @@ define([
 		 */
 		_urlModifier: null,
 
+		/**
+		 * @constructor
+		 * @param {Object} urlModifier
+		 */
 		constructor: function (urlModifier) {
 			if (!urlModifier) {
 				throw new Error("URLModifier required.");
@@ -55,26 +68,38 @@ define([
 			this._urlModifier = urlModifier;
 		},
 
+		/**
+		 * @function
+		 * @name rishson.base.router.RouterParser._getItem
+		 * @param {rishson.base.router.Route} route A route
+		 * @param {number=} offset (optional)
+		 * @description Gets the full item
+		 * @return {string}
+		 */
 		_getItem: function (route, offset) {
 			offset = offset || 0;
-			var hashArray = this._urlModifier.get().split(this._itemDelimiter),
+			var hashArray = this._urlModifier.get().split(this.ITEM_DELIMITER),
 				strippedArray = lang.clone(hashArray),
 				length = strippedArray.length,
 				widgetIndex,
 				i = 0;
 
-			// Loop through all items and strip any parameters
+			// Strip any parameters
 			for (i; i < length; i += 1) {
-				strippedArray[i] = strippedArray[i].split(this._parameterDelimiter)[0];
+				strippedArray[i] = strippedArray[i].split(this.PARAM_DELIMITER)[0];
 			}
 
 			widgetIndex = strippedArray.indexOf(route.getRouteName());
 
 			if (widgetIndex !== -1 && hashArray[widgetIndex + offset]) {
-				// Return the original hashArray so that parameters are included
+				// We return from the original hashArray so that parameters are included
 				return hashArray[widgetIndex + offset];
 			}
 			return null;
+		},
+
+		getModifier: function () {
+			return this._urlModifier;
 		},
 
 		/**
@@ -87,7 +112,7 @@ define([
 			var child = this._getItem(route, 1);
 
 			if (child) {
-				child = child.split(this._parameterDelimiter)[0]; // Strip parameters
+				child = child.split(this.PARAM_DELIMITER)[0]; // Strip parameters
 				return child;
 			}
 			return null;
@@ -108,42 +133,55 @@ define([
 			var child = this._getItem(route);
 
 			if (child) {
-				child = child.split(this._parameterDelimiter)[1]; // Strip name
+				child = child.split(this.PARAM_DELIMITER)[1]; // Strip name
 				return _deserialize(child);
 			}
-			return {};
+			return null;
 		},
 
 		/**
 		 * @function
 		 * @name rishson.base.router.RouterParser.resolveRoute
 		 * @param {rishson.base.router.Route} route A route
-		 * @description Constructs a complete hash that routes to the given widget.
-		 * @return {String} The route string.
+		 * @description Constructs a complete route string for the given route object
+		 * @return {string}
 		 */
 		resolveRoute: function (route) {
-			var hash = "",
+			var routeString = "",
 				buffer = "";
 
 			// While we have a route
-			// we work up the chain to construct the hash
+			// we work up the chain to construct the route string
 			while (route !== null) {
 				buffer = route.getRouteName();
 				if (route.getRouteParameters()) {
-					buffer += this._parameterDelimiter + _serialize(route.getRouteParameters());
+					buffer += this.PARAM_DELIMITER + _serialize(route.getRouteParameters());
 				}
-				buffer += this._itemDelimiter;
+				buffer += this.ITEM_DELIMITER;
 
-				hash = buffer + hash;
+				routeString = buffer + routeString;
 				route = route.getParentRoute();
 			}
-			return hash;
+			return routeString;
+		},
+
+		/**
+		 * @function
+		 * @name rishson.base.router.RouterParser.resolveRoute
+		 * @param {rishson.base.router.Route} route A route
+		 * @description Returns the first item in the child
+		 * @return {string}
+		 */
+		getFirstChild: function () {
+			var firstItem = this.get().split(this.ITEM_DELIMITER)[0];
+
+			return firstItem.split(this.PARAM_DELIMITER)[0] || null; // Strip params
 		},
 
 		/**
 		 * @function
 		 * @name rishson.base.router.RouterParser.set
-		 * @param {String} route The new route
+		 * @param {string} route The new route
 		 * @description Updates the hash in the browser.
 		 */
 		set: function (route) {
@@ -154,6 +192,7 @@ define([
 		 * @function
 		 * @name rishson.base.router.RouterParser.get
 		 * @description Returns the hash.
+		 * @return {string}
 		 */
 		get: function () {
 			return this._urlModifier.get();

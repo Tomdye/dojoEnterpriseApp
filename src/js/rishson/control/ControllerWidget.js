@@ -8,8 +8,8 @@ define([
 	"dojo/store/Observable",	//constructor
 	"rishson/base/router/Route",
 	"rishson/base/router/RouteParser",
-	"rishson/base/router/HashURLModifier"
-], function (declare, topic, Base, _Widget, _Controller, lang, Observable, Route, RouteParser, HashURLModifier) {
+	"rishson/base/router/hashURLModifier"
+], function (declare, topic, Base, _Widget, _Controller, lang, Observable, Route, RouteParser, hashURLModifier) {
 	/**
 	 * @class
 	 * @name rishson.control.ControllerWidget
@@ -120,7 +120,8 @@ define([
 			params.parent = this;
 			params.routeName = routeName;
 
-			this.routes[params.routeName] = new Route(params, new RouteParser(new HashURLModifier()));
+			this.routes[params.routeName] = new Route(params, new RouteParser(hashURLModifier));
+			return this.routes[params.routeName];
 		},
 
 		/**

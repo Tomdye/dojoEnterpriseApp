@@ -2,11 +2,14 @@ define([
 	"dojo/_base/declare",
 	"dojo/_base/lang",
 	"dojo/_base/array",
+	"dojo/dom-attr",
+	"dojo/dom-class",
 	"rishson/base/lang",
 	"rishson/util/ObjectValidator",
 	"rishson/base/router/Route",
+	"rishson/Globals",
 	"dojo/topic"
-], function (declare, lang, arrayUtil, rishsonLang, Validator, Route, topic) {
+], function (declare, lang, arrayUtil, domAttr, domClass, rishsonLang, Validator, Route, Globals, topic) {
 	/**
 	 * @class
 	 * @name rishson.base.router.Route
@@ -83,10 +86,11 @@ define([
 		/**
 		 * @constructor
 		 * @param {Object} routeParams
-		 * @param {rishson.base.router.HashParser} parser
+		 * @param {rishson.base.router.RouteParser} parser
 		 */
 		constructor: function (routeParams, parser) {
 			this._parser = parser;
+
 			this._widget = routeParams.widget;
 			this._parent = routeParams.parent;
 			this._routeName = routeParams.routeName;
@@ -110,10 +114,12 @@ define([
 
 			// If the current URL has a child that belongs to this widget
 			// then we call display on it
-
 			if (this._parser.hasChild(this)) {
-				childRouteName = this._parser.getChildName(this._widget);
-				route = this._findRoute(this._widget.routes, childRouteName);
+				childRouteName = this._parser.getChildName(this);
+
+				route = rishsonLang.find(this._widget.routes, function (route) {
+					return route.getRouteName() === childRouteName;
+				});
 
 				if (route) {
 					route.display();
@@ -127,23 +133,13 @@ define([
 				this._widgetParameters = lang.isObject(routeParameters) ?
 						routeParameters : this._parser.getParameters(this);
 
-				topic.publish("route/update", {
+				topic.publish(Globals.UPDATE_ROUTE, {
 					route: this._parser.resolveRoute(this)
 				});
 			}
 
 			// Call the original display function
 			return this._displayFn.call(this._parent, this._widgetParameters, this._widget);
-		},
-
-		_findRoute: function (routes, name) {
-			rishsonLang.forEachObjProperty(routes, function (route) {
-				if (route.getRouteName() === name) {
-					return route;
-				}
-			}, this);
-
-			return null;
 		},
 
 		/**
@@ -176,7 +172,12 @@ define([
 		},
 
 		getRouteAsURLString: function () {
-			return this._parser.resolveRoute(this);
+			return this._parser.getModifier().format(this._parser.resolveRoute(this));
+		},
+
+		linkify: function (node) {
+			domAttr.set(node, "href", this.getRouteAsURLString());
+			domClass.add(node, Globals.BUBBLING_CLASS);
 		},
 
 		_resolveParentRoute: function (parentRoute) {
@@ -202,7 +203,7 @@ define([
 
 		_getDisplayFunction: function (display) {
 			if (lang.isFunction(display)) {
-				// Function given, just cache it
+				// Function given, just return it
 				return display;
 			} else if (lang.isString(display)) {
 				// String given, find the function in the parents scope

@@ -78,7 +78,8 @@ define([
 				url: url,
 				handleAs: "json",
 				headers: {'Content-Type': "application/json"}, //default to json for SOAP
-				timeout: this.requestTimeout
+				timeout: this.requestTimeout,
+				withCredentials: true
 			};
 
 			//REST or SOAP call

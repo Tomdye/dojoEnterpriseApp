@@ -3,7 +3,13 @@ define([
 	"dojo/_base/lang",
 	"dojo/hash"
 ], function (declare, lang, hash) {
-	return declare("rishson.base.router.HashURLModifier", null, {
+	return {
+		CHANGE_EVENT: "/dojo/hashchange",
+
+		format: function (url) {
+			return "#" + url;
+		},
+
 		get: function () {
 			return hash();
 		},
@@ -11,5 +17,5 @@ define([
 		set: function (route) {
 			hash(route);
 		}
-	});
+	};
 });

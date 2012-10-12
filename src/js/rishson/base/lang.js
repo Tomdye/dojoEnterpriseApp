@@ -55,6 +55,32 @@ define([], function () {
 
 		/**
 		 * @function
+		 * @name rishson.Base.lang.find
+		 * @description Looks through each value in the list, returning the first one that passes a truth test (iterator).
+		 * The function returns as soon as it finds an acceptable element, and doesn't traverse the entire list.
+		 * @param {Object} obj Object to iterate over, either Array or Map
+		 * @param {Function} iterator Should return either true or false depending on whether there is a match
+		 * @return {Object} scope The scope to execute the callback within
+		 **/
+		find = function (obj, iterator, scope) {
+			var key,
+				found = false,
+				result = null;
+
+			for (key in obj) {
+				if (obj.hasOwnProperty(key)) {
+					found = iterator.call(scope, obj[key], key);
+					if (found === true) {
+						result = obj[key];
+						break;
+					}
+				}
+			}
+			return result;
+		},
+
+		/**
+		 * @function
 		 * @name rishson.Base.lang.defer
 		 * @description Defers a function, scheduling it to run after the current call stack has cleared
 		 * @param {Function} func The function to be called
@@ -69,7 +95,8 @@ define([], function () {
 		lang = {
 			unionArrays: unionArrays,
 			forEachObjProperty: forEachObjProperty,
-			defer: defer
+			defer: defer,
+			find: find
 		};
 
 	return lang;
