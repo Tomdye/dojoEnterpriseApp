@@ -2,22 +2,42 @@ define([
 	"dojo/_base/declare",
 	"dojo/_base/lang",
 	"dojo/_base/array",
+	"dojo/dom-attr",
+	"dojo/dom-class",
 	"rishson/base/lang",
 	"rishson/util/ObjectValidator",
-	"dojo/topic",
-	"rishson/base/router/_hashParser"
-], function (declare, lang, arrayUtil, rishsonLang, Validator, topic, parser) {
+	"rishson/base/router/Route",
+	"rishson/Globals",
+	"dojo/topic"
+], function (declare, lang, arrayUtil, domAttr, domClass, rishsonLang, Validator, Route, Globals, topic) {
 	/**
 	 * @class
 	 * @name rishson.base.router.Route
-	 * @description Defines a single route for a widget
+	 * @description Defines a single, uni-directional route between two widgets
 	 */
-	return declare('rishson.base.router.Route', null, {
+	return declare("rishson.base.router.Route", null, {
 		/**
 		 * @field
-		 * @name rishson.base.router.Route._widget
+		 * @name rishson.base.router.Route._parser
+		 * @type {rishson.base.router.HashParser}
+		 * @description The hash parser
+		 */
+		_parser: null,
+
+		/**
+		 * @field
+		 * @name rishson.base.router.Route._parent
 		 * @type {rishson.widget._Widget}
-		 * @description The widget that this route belongs to
+		 * @description The parent widget for this uni-directional route relationship,
+		 * the parent setup the route for the widget
+		 */
+		_parent: null,
+
+		/**
+		 * @field
+		 * @name rishson.base.router.Route._child
+		 * @type {rishson.widget._Widget}
+		 * @description The widget for this uni-directional route relationship
 		 */
 		_widget: null,
 
@@ -25,7 +45,8 @@ define([
 		 * @field
 		 * @name rishson.base.router.Route._displayFn
 		 * @type {Function}
-		 * @description A function that displays the widget to the end user
+		 * @description A reference to the original function that displays the widget to
+		 * the end user.
 		 */
 		_displayFn: null,
 
@@ -39,14 +60,6 @@ define([
 
 		/**
 		 * @field
-		 * @name rishson.base.router.Route._parent
-		 * @type {rishson.widget._Widget}
-		 * @description The parent widget for the widget that this route represents
-		 */
-		_parent: null,
-
-		/**
-		 * @field
 		 * @name rishson.base.router.Route._options
 		 * @type {Object}
 		 * @description A hash of options for this route
@@ -55,35 +68,35 @@ define([
 
 		/**
 		 * @field
-		 * @name rishson.base.router.Route._parameterCriteria
-		 * @type {Array}
-		 * @description The criteria for any corresponding query string parameters
+		 * @name rishson.base.router.Route._parentRoute
+		 * @type {rishson.base.router.Route}
+		 * @description The parent route that this route belongs to. If this is not set
+		 * then this route is assumed to be the 'master' route.
 		 */
-		_parameterCriteria: null,
+		_parentRoute: null,
+
+		/**
+		 * @field
+		 * @name rishson.base.router.Route._options
+		 * @type {Object}
+		 * @description A hash of the most recently set route parameters
+		 */
+		_widgetParameters: null,
 
 		/**
 		 * @constructor
+		 * @param {Object} routeParams
+		 * @param {rishson.base.router.RouteParser} parser
 		 */
-		constructor: function (routeParams) {
+		constructor: function (routeParams, parser) {
+			this._parser = parser;
+
 			this._widget = routeParams.widget;
-			this._displayFn = routeParams.display;
-			this._routeName = routeParams.routeName;
 			this._parent = routeParams.parent;
+			this._routeName = routeParams.routeName;
 			this._options = routeParams.options || {};
-			this._parameterCriteria = routeParams.parameters;
-
-			// Augment widget with router related members
-			this._widget._parent = this._parent;
-			this._widget._routeName = this._routeName;
-
-			// If this widget is the default
-			if (this._options.isDefault) {
-				// Ensure no more than one default view is set
-				if (this._parent._defaultRoute) {
-					throw new Error("Tried to set default view as " + this._routeName + " but already set with " + this._parent._defaultRoute);
-				}
-				this._parent._defaultRoute = this._routeName;
-			}
+			this._displayFn = this._getDisplayFunction(routeParams.display);
+			this._parentRoute = routeParams.parentRoute;
 		},
 
 		/**
@@ -93,110 +106,40 @@ define([
 		 * @description Called whenever a widget needs displaying to the end user.
 		 * Before running the users actual display function, the current route is checked for a child.
 		 * If a child is found then display is called on it first.
-		 * @return {?} Any return values that are returned by the native display function.
+		 * @return {?} The return value that is returned by the native display function.
 		 */
 		display: function (routeParameters) {
-			// Check if there is a child in the URL
-			if (parser.hasChild(this._widget)) {
-				var childName = parser.getChildName(this._widget);
+			var route,
+				childRouteName;
 
-				// Check if this widget contains the child
-				rishsonLang.forEachObjProperty(this._widget.routes, function (route) {
-					if (route.getRouteName() === childName) {
-						route.display();
-					}
-				}, this);
-			} else {
-				// Else we are at the end of the routing chain
-				// If parameters weren't given programmatically then
-				// we try and get them from the URL
-				routeParameters = routeParameters || parser.getQueryParameters(this._widget, this._parameterCriteria);
+			// If the current URL has a child that belongs to this widget
+			// then we call display on it
+			if (this._parser.hasChild(this)) {
+				childRouteName = this._parser.getChildName(this);
 
-				// Display a default view if one exists
-				if (this._widget._defaultRoute) {
-					// Find matching view
-					rishsonLang.forEachObjProperty(this._widget.routes, function (route) {
-						if (route.getRouteName() === this._widget._defaultRoute) {
-							route.display();
-						}
-					}, this);
-				} else {
-					// Stash the current hash as a parameter if we need to
-					if (this._options.stashExisting && parser.get()) {
-						routeParameters = routeParameters || {};
-						routeParameters.redirectTo = parser.get();
-					}
-					// Nothing more to do, update the route
-					topic.publish("route/update", {
-						widget: this._widget,
-						parameters: routeParameters
-					});
-				}
-			}
-
-			// If validation passed, or we don't need to validate
-			if (this._options.suppressValidation || this._validate(routeParameters)) {
-				// Call the users display function to actually display the widget
-				return this._displayFn.call(this._parent, routeParameters, this._widget);
-			} else if (!this._options.suppressValidation) {
-				// Validation failed
-				console.error("Route: " + parser.resolveRoute(this._widget) +
-					" was passed parameters: ", routeParameters,
-					" but expected criteria: ", this._parameterCriteria);
-			}
-		},
-
-		/**
-		 * @function
-		 * @name rishson.base.router.Route._validate
-		 * @private
-		 * @param {Object} routeParameters The parameters to validate
-		 * @description Validates the routeParameters.
-		 * @return {Boolean} Denotes whether validation has passed or failed.
-		 */
-		_validate: function (routeParameters) {
-			if (this._parameterCriteria && routeParameters) {
-				var validatorCriteria = this._stripNonRequiredCriteria(routeParameters, this._parameterCriteria),
-					validator = new Validator(validatorCriteria);
-				return validator.validate(routeParameters);
-			} else if (!this._parameterCriteria) {
-				return true;
-			}
-			return false;
-		},
-
-		/**
-		 * @function
-		 * @name rishson.base.router.Route._stripNonRequiredCriteria
-		 * @private
-		 * @param {Object} parameters The key value parameter pairs
-		 * @param {Array} criteria The parameter criteria
-		 * @description Helper function that strips any criteria which do not have matching
-		 * parameter items and are not forcibly required. The result is passed to the ObjectValidator
-		 * @return {Array} The stripped criteria.
-		 */
-		_stripNonRequiredCriteria: function (parameters, criteria) {
-			var required = [];
-
-			// Loop through criteria items
-			arrayUtil.forEach(criteria, function (criteriaItem) {
-				var pushed = false;
-				// Find matching parameter
-				rishsonLang.forEachObjProperty(parameters, function (param, paramName) {
-					// If we have a parameter for this criteria
-					// Then we need to validate it
-					if (criteriaItem.paramName === paramName) {
-						required.push(criteriaItem);
-						pushed = true;
-					}
+				route = rishsonLang.find(this._widget.routes, function (route) {
+					return route.getRouteName() === childRouteName;
 				});
-				// If we have not already pushed this criteriaItem item
-				// Yet it 'required' then we need to validate it
-				if (!pushed && criteriaItem.required) {
-					required.push(criteriaItem);
+
+				if (route) {
+					route.display();
 				}
-			});
-			return required;
+			} else {
+				// We are either at the end of the routing chain
+				// OR the method has been called programmatically
+
+				// If parameters weren't given then
+				// we try and parse some from the URL
+				this._widgetParameters = lang.isObject(routeParameters) ?
+						routeParameters : this._parser.getParameters(this);
+
+				topic.publish(Globals.UPDATE_ROUTE, {
+					route: this._parser.resolveRoute(this)
+				});
+			}
+
+			// Call the original display function
+			return this._displayFn.call(this._parent, this._widgetParameters, this._widget);
 		},
 
 		/**
@@ -208,6 +151,68 @@ define([
 		 */
 		getRouteName: function () {
 			return this._routeName;
+		},
+
+		/**
+		 * @function
+		 * @name rishson.base.router.Route.getParentRoute
+		 * @private
+		 * @description Returns the route name for this route.
+		 * @return {rishson.base.router.Route} The route.
+		 */
+		getParentRoute: function () {
+			if (this._parentRoute) {
+				return this._resolveParentRoute(this._parentRoute);
+			}
+			return null;
+		},
+
+		getRouteParameters: function () {
+			return this._widgetParameters;
+		},
+
+		getRouteAsURLString: function () {
+			return this._parser.getModifier().format(this._parser.resolveRoute(this));
+		},
+
+		linkify: function (node) {
+			domAttr.set(node, "href", this.getRouteAsURLString());
+			domClass.add(node, Globals.BUBBLING_CLASS);
+		},
+
+		_resolveParentRoute: function (parentRoute) {
+			var widget = this._parent;
+
+			if (!parentRoute) {
+				return;
+			}
+
+			if (lang.isString(parentRoute)) {
+				// String given, attempt to find the parent in the parent properties routes hash
+				if (widget && widget.__parent__.routes[parentRoute]) {
+					return widget.__parent__.routes[parentRoute];
+				} else {
+					console.error("Could not find parent route: " + parentRoute);
+				}
+			} else if (parentRoute.declaredClass === "rishson.base.router.Route") {
+				// Else we were passed a route directly
+				return parentRoute;
+			}
+			return null;
+		},
+
+		_getDisplayFunction: function (display) {
+			if (lang.isFunction(display)) {
+				// Function given, just return it
+				return display;
+			} else if (lang.isString(display)) {
+				// String given, find the function in the parents scope
+				if (lang.isFunction(this._parent[display])) {
+					return this._parent[display];
+				} else {
+					throw new Error("No function was found with the name: " + display);
+				}
+			}
 		}
 	});
 });

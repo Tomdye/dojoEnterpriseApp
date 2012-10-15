@@ -8,7 +8,8 @@ define([
 	"rishson/tests/doh/control/TestResponse",
 	"rishson/tests/doh/control/TestRestRequest",
 	"rishson/tests/doh/control/TestServiceRequest",
-	"rishson/tests/doh/util/TestObjectValidator"
+	"rishson/tests/doh/util/TestObjectValidator",
+	"rishson/tests/doh/base/router/RouteParser"
 ], function (doh, require) {
 	doh.registerUrl("AppContainer tests", require.toUrl("./view/TestAppContainer.html"), 999999);
 });
