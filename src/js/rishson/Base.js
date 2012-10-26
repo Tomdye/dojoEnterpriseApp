@@ -5,8 +5,9 @@ define([
 	"rishson/base/lang",
 	"dojo/topic",	// publish/subscribe
 	"dojo/_base/array",	// forEach, indexOf
-	"dojo/_base/Deferred"	//constructor
-], function (declare, Globals, lang, rishsonLang, topic, arrayUtil, Deferred) {
+	"dojo/_base/Deferred",	//constructor
+	"dojo/on"
+], function (declare, Globals, lang, rishsonLang, topic, arrayUtil, Deferred, on) {
 
 	/**
 	 * @class
@@ -47,11 +48,15 @@ define([
 		 */
 		_id: null,
 
+		_onHandlers: null,
+
 		/**
 		 * @constructor
 		 */
 		constructor: function (args) {
 			this.pubList = {};
+			this._onHandlers = [];
+
 			if (args) {
 				lang.mixin(this, args);
 
@@ -199,6 +204,22 @@ define([
 					//ignore errors thrown by IE when doing teardown of Grids whose domNode's get removed early
 				}
 			}
+		},
+
+		wire: function (event, fn) {
+			var handler = on(this, event, fn);
+			this._onHandlers.push(handler);
+		},
+
+		destroy: function () {
+			var i = 0,
+				length = this._onHandlers.length;
+
+			// Tear down any on handlers
+			for (i; i < length; i++) {
+				this._onHandlers[i].remove();
+			}
+			this.inherited(arguments);
 		},
 
 		/**
