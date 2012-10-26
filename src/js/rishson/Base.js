@@ -8,7 +8,6 @@ define([
 	"dojo/_base/Deferred",	//constructor
 	"dojo/on"
 ], function (declare, Globals, lang, rishsonLang, topic, arrayUtil, Deferred, on) {
-
 	/**
 	 * @class
 	 * @name rishson.Base
@@ -176,7 +175,7 @@ define([
 		 * Pass any truthy value here and the child will be orphaned and killed.
 		 */
 		orphan: function (widget, destroy) {
-			if (widget._beingDestroyed) { return; }
+			if (!widget || widget._beingDestroyed) { return; }
 
 			// Remove the supporting widget
 			var i = arrayUtil.indexOf(this._supportingWidgets, widget);
@@ -206,16 +205,28 @@ define([
 			}
 		},
 
+		/**
+		 * @function
+		 * @name rishson.Base.wire
+		 * @description Wires a callback for this widget when the given event is fired
+		 * @param {String} event
+		 * @param {Function} fn
+		 **/
 		wire: function (event, fn) {
 			var handler = on(this, event, fn);
 			this._onHandlers.push(handler);
 		},
 
+		/**
+		 * @function
+		 * @name rishson.Base.destroy
+		 * @description Override for dijit._WidgetBase.destroy to tear down any 'on' handlers
+		 **/
 		destroy: function () {
 			var i = 0,
 				length = this._onHandlers.length;
 
-			// Tear down any on handlers
+			// Tear down any 'on' handlers
 			for (i; i < length; i++) {
 				this._onHandlers[i].remove();
 			}
