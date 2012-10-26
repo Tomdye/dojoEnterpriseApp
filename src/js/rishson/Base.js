@@ -5,9 +5,9 @@ define([
 	"rishson/base/lang",
 	"dojo/topic",	// publish/subscribe
 	"dojo/_base/array",	// forEach, indexOf
-	"dojo/_base/Deferred"	//constructor
-], function (declare, Globals, lang, rishsonLang, topic, arrayUtil, Deferred) {
-
+	"dojo/_base/Deferred",	//constructor
+	"dojo/on"
+], function (declare, Globals, lang, rishsonLang, topic, arrayUtil, Deferred, on) {
 	/**
 	 * @class
 	 * @name rishson.Base
@@ -48,10 +48,21 @@ define([
 		_id: null,
 
 		/**
+		 * @field
+		 * @private
+		 * @name rishson.Base._onHandlers
+		 * @type {Array}
+		 * @description A collection of handlers created when another widget wires to this widget
+		 */
+		_onHandlers: null,
+
+		/**
 		 * @constructor
 		 */
 		constructor: function (args) {
 			this.pubList = {};
+			this._onHandlers = [];
+
 			if (args) {
 				lang.mixin(this, args);
 
@@ -171,7 +182,7 @@ define([
 		 * Pass any truthy value here and the child will be orphaned and killed.
 		 */
 		orphan: function (widget, destroy) {
-			if (widget._beingDestroyed) { return; }
+			if (!widget || widget._beingDestroyed) { return; }
 
 			// Remove the supporting widget
 			var i = arrayUtil.indexOf(this._supportingWidgets, widget);
@@ -199,6 +210,34 @@ define([
 					//ignore errors thrown by IE when doing teardown of Grids whose domNode's get removed early
 				}
 			}
+		},
+
+		/**
+		 * @function
+		 * @name rishson.Base.wire
+		 * @description Wires a callback for this widget when the given event is fired
+		 * @param {String} event
+		 * @param {Function} fn
+		 **/
+		wire: function (event, fn) {
+			var handler = on(this, event, fn);
+			this._onHandlers.push(handler);
+		},
+
+		/**
+		 * @function
+		 * @name rishson.Base.destroy
+		 * @description Override for dijit._WidgetBase.destroy to tear down any 'on' handlers
+		 **/
+		destroy: function () {
+			var i = 0,
+				length = this._onHandlers.length;
+
+			// Tear down any 'on' handlers
+			for (i; i < length; i++) {
+				this._onHandlers[i].remove();
+			}
+			this.inherited(arguments);
 		},
 
 		/**
