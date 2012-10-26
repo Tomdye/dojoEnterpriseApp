@@ -47,6 +47,13 @@ define([
 		 */
 		_id: null,
 
+		/**
+		 * @field
+		 * @private
+		 * @name rishson.Base._onHandlers
+		 * @type {Array}
+		 * @description A collection of handlers created when another widget wires to this widget
+		 */
 		_onHandlers: null,
 
 		/**
