@@ -4,10 +4,11 @@ define([
 	"rishson/util/ObjectValidator",	//validate
 	"rishson/control/PushHandler",
 	"dojo/_base/lang",	// mixin, hitch
+	"rishson/base/lang",
 	"dojo/_base/array",	// indexOf, forEach
 	"dojo/_base/declare",	// declare
 	"dojo/topic"	// publish/subscribe
-], function (Globals, LoginResponse, ObjectValidator, PushHandler, lang, arrayUtil, declare, topic) {
+], function (Globals, LoginResponse, ObjectValidator, PushHandler, lang, rishsonLang, arrayUtil, declare, topic) {
 	/**
 	 * @class
 	 * @name rishson.control.Dispatcher
@@ -22,6 +23,8 @@ define([
 		 * @description an implementation of rishson.control.Transport
 		 */
 		transport: null,
+
+		socketTransport: null,
 
 		/**
 		 * @field
@@ -62,27 +65,27 @@ define([
 		 * @constructor
 		 * @param {rishson.control.Transport} transport an implementation of rishson.control.Transport
 		 */
-		constructor: function (transport) {
+		constructor: function (transport, socketTransport) {
 			var criteria = [
 					{paramName: 'transport', paramType: 'object'}
 				],
 				validator = new ObjectValidator(criteria),
-				params = {'transport': transport},
-				unwrappedParams;
+				params = {'transport': transport};
 
 			//collect up the params and validate
 			if (validator.validate(params)) {
-				//unwrap the object contents for validation and to do a mixin
-				unwrappedParams = {'transport': transport};
-
-				lang.mixin(this, unwrappedParams);
+				this.transport = transport;
 
 				//decorate the transport with the response and error handling functions in this class (need hitching)
-				this.transport.addResponseFunctions(lang.hitch(this, this.handleResponse),
+				transport.addResponseFunctions(lang.hitch(this, this.handleResponse),
 					lang.hitch(this, this.handleError));
 
 				//listen out for other classes wanting to send requests to the server
 				topic.subscribe(Globals.SEND_REQUEST, lang.hitch(this, "send"));
+
+				if (socketTransport) {
+					this.socketTransport = socketTransport;
+				}
 			} else {
 				validator.logErrorToConsole(params, 'Invalid params passed to the Dispatcher.');
 				throw ('Invalid params passed to the Controller.');
@@ -102,6 +105,15 @@ define([
 		send: function (request, appId) {
 			this.transport.send(request, appId);
 			//auditing, analytics etc can be enabled here
+		},
+
+		socketSubscribe: function (request, appId) {
+			debugger
+			this.socketTransport.subscribe(request, appId);
+		},
+
+		socketUnsubscribe: function (request, appId) {
+			this.socketTransport.unsubscribe(request, appId);
 		},
 
 		/**
@@ -199,8 +211,7 @@ define([
 		 * @private
 		 */
 		_processSuccessfulLoginResponse : function (response) {
-			var anyAppHasWebsocketEnabled = false,
-				loginResponse,
+			var loginResponse,
 				mixinObj = {},
 				index;
 
@@ -211,17 +222,6 @@ define([
 					returnRequest: loginResponse.returnRequest
 				};
 				lang.mixin(this, mixinObj);
-
-				//check if any app needs to use websocket and if so initialise cometd
-				arrayUtil.some(loginResponse.apps, function (app) {
-					if (app.websocket){
-						anyAppHasWebsocketEnabled = true;
-					}
-				}, this);
-
-				if (anyAppHasWebsocketEnabled) {
-					this._pushHandler = new PushHandler(this.transport.baseUrl);
-				}
 
 				//convert authorities to lower case so we can do case-insensitive search for authorities
 				arrayUtil.forEach(this.grantedAuthorities, function (authority) {
@@ -252,7 +252,6 @@ define([
 		_setupApplicationUrls: function (apps) {
 			var i = 0,
 				l = apps.length,
-				sendTopicSuffix = '/request/send',
 				app,
 				appId,
 				url,
@@ -263,10 +262,20 @@ define([
 				appId = app.id.toLowerCase();
 				//create a tag value entry on the appObj where the key is the application id and the value the baseUrl
 				appObj[appId] = app.baseUrl;
-				url = '/' + appId + sendTopicSuffix;
-				topic.subscribe(url, lang.hitch(this, function _send (appId, request) {
+				url = '/' + appId;
+				topic.subscribe(url + Globals.SEND_REQUEST, lang.hitch(this, function _send (appId, request) {
 					this.send(request, appId);
 				}, appId));
+
+				if (app.websocket) {
+					topic.subscribe(url + Globals.SOCKET_SUBSCRIBE, lang.hitch(this, function (appId, request) {
+							this.socketSubscribe(request, appId);
+					}, appId));
+
+					topic.subscribe(url + Globals.SOCKET_UNSUBSCRIBE, lang.hitch(this, function (appId, request) {
+						this.socketUnsubscribe(request, appId);
+					}, appId));
+				}
 			}
 			return appObj;
 		}

@@ -43,6 +43,22 @@ define(["exports"], function (exports) {
 
 	/**
 	 * @field
+	 * @name rishson.Globals.SOCKET_SUBSCRIBE
+	 * @type {string}
+	 * @description This namespace is prepended to every topic name
+	 */
+	exports.SOCKET_SUBSCRIBE = exports.TOPIC_NAMESPACE + "/socket/subscribe";
+
+	/**
+	 * @field
+	 * @name rishson.Globals.SOCKET_UNSUBSCRIBE
+	 * @type {string}
+	 * @description This namespace is prepended to every topic name
+	 */
+	exports.SOCKET_UNSUBSCRIBE = exports.TOPIC_NAMESPACE + "/socket/unsubscribe";
+
+	/**
+	 * @field
 	 * @name rishson.Globals.UPDATE_ROUTE
 	 * @type {string}
 	 * @description The event to subscribe to when the route needs to be updated
