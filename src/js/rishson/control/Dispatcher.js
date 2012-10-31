@@ -2,13 +2,11 @@ define([
 	"rishson/Globals",
 	"rishson/control/LoginResponse",
 	"rishson/util/ObjectValidator",	//validate
-	"rishson/control/PushHandler",
 	"dojo/_base/lang",	// mixin, hitch
-	"rishson/base/lang",
 	"dojo/_base/array",	// indexOf, forEach
 	"dojo/_base/declare",	// declare
 	"dojo/topic"	// publish/subscribe
-], function (Globals, LoginResponse, ObjectValidator, PushHandler, lang, rishsonLang, arrayUtil, declare, topic) {
+], function (Globals, LoginResponse, ObjectValidator, lang, arrayUtil, declare, topic) {
 	/**
 	 * @class
 	 * @name rishson.control.Dispatcher
@@ -24,6 +22,12 @@ define([
 		 */
 		transport: null,
 
+		/**
+		 * @field
+		 * @name rishson.control.Dispatcher.socketTransport
+		 * @type {rishson.control.SocketTransport}
+		 * @description The socket transport layer used to communicate with a socket adapter
+		 */
 		socketTransport: null,
 
 		/**
@@ -76,16 +80,16 @@ define([
 			if (validator.validate(params)) {
 				this.transport = transport;
 
+				if (socketTransport) {
+					this.socketTransport = socketTransport;
+				}
+
 				//decorate the transport with the response and error handling functions in this class (need hitching)
-				transport.addResponseFunctions(lang.hitch(this, this.handleResponse),
+				this.transport.addResponseFunctions(lang.hitch(this, this.handleResponse),
 					lang.hitch(this, this.handleError));
 
 				//listen out for other classes wanting to send requests to the server
 				topic.subscribe(Globals.SEND_REQUEST, lang.hitch(this, "send"));
-
-				if (socketTransport) {
-					this.socketTransport = socketTransport;
-				}
 			} else {
 				validator.logErrorToConsole(params, 'Invalid params passed to the Dispatcher.');
 				throw ('Invalid params passed to the Controller.');
@@ -107,13 +111,16 @@ define([
 			//auditing, analytics etc can be enabled here
 		},
 
-		socketSubscribe: function (request, appId) {
-			debugger
-			this.socketTransport.subscribe(request, appId);
+		socketSubscribe: function (event, appId) {
+			this.socketTransport.subscribe(appId, event);
 		},
 
-		socketUnsubscribe: function (request, appId) {
-			this.socketTransport.unsubscribe(request, appId);
+		socketUnsubscribe: function (event, appId) {
+			this.socketTransport.unsubscribe(appId, event);
+		},
+
+		socketRegisterEventHandlers: function (eventHandlers, appId) {
+			this.socketTransport.registerEventHandlers(appId, eventHandlers);
 		},
 
 		/**
@@ -131,7 +138,7 @@ define([
 			if (!this._haveProcessedLoginResponse) {
 				if (this._isSuccessfulLoginResponse(response)) {
 					response = this._processSuccessfulLoginResponse(response);
-					apps = this._setupApplicationUrls(response.apps);
+					apps = this._setupApplicationSubscriptions(response.apps);
 					this.transport.bindApplicationUrls(apps);
 					this._haveProcessedLoginResponse = true;	//we only need to do this once
 				}
@@ -211,7 +218,8 @@ define([
 		 * @private
 		 */
 		_processSuccessfulLoginResponse : function (response) {
-			var loginResponse,
+			var anyAppHasWebsocketEnabled = false,
+				loginResponse,
 				mixinObj = {},
 				index;
 
@@ -243,18 +251,18 @@ define([
 
 		/**
 		 * @function
-		 * @name rishson.control.Dispatcher._setupApplicationUrls
+		 * @name rishson.control.Dispatcher._setupApplicationSubscriptions
 		 * @description Subscribe to request/send events for child applications from loginResponse.
 		 * @param {object} apps a list of application objects
 		 * @return {object} the list of apps with all but the name and baseUrl removed
 		 * @private
 		 */
-		_setupApplicationUrls: function (apps) {
+		_setupApplicationSubscriptions: function (apps) {
 			var i = 0,
 				l = apps.length,
 				app,
 				appId,
-				url,
+				appURL,
 				appObj = {};
 
 			for  (i; i < l; i += 1) {
@@ -262,18 +270,24 @@ define([
 				appId = app.id.toLowerCase();
 				//create a tag value entry on the appObj where the key is the application id and the value the baseUrl
 				appObj[appId] = app.baseUrl;
-				url = '/' + appId;
-				topic.subscribe(url + Globals.SEND_REQUEST, lang.hitch(this, function _send (appId, request) {
+				appURL = '/' + appId;
+				topic.subscribe(appURL + "/request/send", lang.hitch(this, function _send (appId, request) {
 					this.send(request, appId);
 				}, appId));
 
 				if (app.websocket) {
-					topic.subscribe(url + Globals.SOCKET_SUBSCRIBE, lang.hitch(this, function (appId, request) {
-							this.socketSubscribe(request, appId);
+					this.socketTransport.createSocket(appId);
+
+					topic.subscribe(appURL + Globals.SOCKET_SUBSCRIBE, lang.hitch(this, function (appId, event) {
+						this.socketSubscribe(event, appId);
 					}, appId));
 
-					topic.subscribe(url + Globals.SOCKET_UNSUBSCRIBE, lang.hitch(this, function (appId, request) {
-						this.socketUnsubscribe(request, appId);
+					topic.subscribe(appURL + Globals.SOCKET_UNSUBSCRIBE, lang.hitch(this, function (appId, event) {
+						this.socketUnsubscribe(event, appId);
+					}, appId));
+
+					topic.subscribe(appURL + Globals.SOCKET_REGISTER_HANDLERS, lang.hitch(this, function (appId, eventHandlers) {
+						this.socketRegisterEventHandlers(eventHandlers, appId);
 					}, appId));
 				}
 			}

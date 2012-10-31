@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>doh.robot AppContainer Test</title>
+
+
+	<!-- required: dojo.js -->
+	<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
+	<script type="text/javascript" src="../../../../sinon/sinon-1.5.0.js"></script>
+	<script type="text/javascript">
+
+	function newMockSocketFactory() {
+		return new function () {
+			this.create = function () {};
+		};
+	}
+
+	function newMockSocket () {
+		return new function () {
+			this.on = function (topic, callback) {};
+			this.emit = function (topic, data) {};
+		};
+	}
+
+	require([
+		"doh",
+		"rishson/control/SocketTransport",
+		"dojo/domReady!"
+	], function (doh, SocketTransport) {
+		doh.register("AppContainer tests", [
+		{
+			name: "Instantiation with mock socket factory",
+			runTest: function () {
+				doh.assertTrue(new SocketTransport(newMockSocketFactory()));
+			}
+		},
+		{
+			name: "Can create a new socket for an application",
+			runTest: function () {
+				var factory = newMockSocketFactory(),
+					socket = newMockSocket();
+				sinon.stub(factory, "create").returns(socket);
+
+				var transport = new SocketTransport(factory);
+				transport.createSocket("testId");
+
+				doh.assertEqual(transport.getSocket("testId"), socket);
+			}
+		},
+		{
+			name: "Registers an event handler for the applications socket",
+			runTest: function () {
+				var factory = newMockSocketFactory(),
+					socket = newMockSocket();
+
+				sinon.stub(factory, "create").returns(socket);
+				var spy = sinon.spy(socket, "on");
+
+				var transport = new SocketTransport(factory);
+
+				transport.createSocket("testId");
+				transport.registerEventHandlers("testId", [
+					{ event: "testEvent" }
+				]);
+
+				doh.assertTrue(spy.calledOnce);
+				doh.assertTrue(spy.calledWith("testEvent"));
+			}
+		},
+		{
+			name: "Can subscribe a socket to an event",
+			runTest: function () {
+				var factory = newMockSocketFactory(),
+					socket = newMockSocket();
+				sinon.stub(factory, "create").returns(socket);
+				var spy = sinon.spy(socket, "emit");
+
+				var transport = new SocketTransport(factory);
+				transport.createSocket("testId");
+				transport.subscribe("testId", "testEvent");
+
+				doh.assertTrue(spy.calledOnce);
+				doh.assertTrue(spy.calledWith("SUBSCRIBE", "testEvent"));
+			}
+		},
+		{
+				name: "Can unsubscribe a socket to an event",
+				runTest: function () {
+					var factory = newMockSocketFactory(),
+						socket = newMockSocket();
+					sinon.stub(factory, "create").returns(socket);
+					var spy = sinon.spy(socket, "emit");
+
+					var transport = new SocketTransport(factory);
+					transport.createSocket("testId");
+					transport.unsubscribe("testId", "testEvent");
+
+					doh.assertTrue(spy.calledOnce);
+					doh.assertTrue(spy.calledWith("UNSUBSCRIBE", "testEvent"));
+				}
+		},
+		{
+			name: "Dispatches an event to the application when a subscribed socket event is received from the server",
+			runTest: function () {
+				var factory = newMockSocketFactory(),
+					socket = newMockSocket();
+
+				sinon.stub(factory, "create").returns(socket);
+				var spy = sinon.spy(socket, "on");
+
+				var transport = new SocketTransport(factory),
+					dispatchSpy = sinon.spy(transport, "dispatch");
+
+				transport.createSocket("testId");
+
+				transport.registerEventHandlers("testId", [
+					{ event: "case", handlerEvent: "case/123" }
+				]);
+
+				var callback = spy.args[0][1]; // Second argument of the first call
+
+				// Execute callback - 'losely'simulating an event from the server
+				callback("mockData");
+
+				doh.assertTrue(dispatchSpy.calledOnce);
+				doh.assertTrue(dispatchSpy.calledWith("case/123", "mockData"));
+			}
+		}
+	]);
+	doh.run();
+	});
+	</script>
+</head>
+</html>

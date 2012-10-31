@@ -47,7 +47,7 @@ define(["exports"], function (exports) {
 	 * @type {string}
 	 * @description This namespace is prepended to every topic name
 	 */
-	exports.SOCKET_SUBSCRIBE = exports.TOPIC_NAMESPACE + "/socket/subscribe";
+	exports.SOCKET_SUBSCRIBE = "/socket/subscribe";
 
 	/**
 	 * @field
@@ -55,7 +55,15 @@ define(["exports"], function (exports) {
 	 * @type {string}
 	 * @description This namespace is prepended to every topic name
 	 */
-	exports.SOCKET_UNSUBSCRIBE = exports.TOPIC_NAMESPACE + "/socket/unsubscribe";
+	exports.SOCKET_UNSUBSCRIBE = "/socket/unsubscribe";
+
+	/**
+	 * @field
+	 * @name rishson.Globals.SOCKET_REGISTER_HANDLERS
+	 * @type {string}
+	 * @description This namespace is prepended to every topic name
+	 */
+	exports.SOCKET_REGISTER_HANDLERS = "/socket/registerhandlers";
 
 	/**
 	 * @field
