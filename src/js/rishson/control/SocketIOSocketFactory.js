@@ -9,8 +9,9 @@ define([
 	return {
 		create: function () {
 			var supportsWebSockets = (typeof WebSocket !== "undefined");
+
 			//noinspection JSValidateTypes
-			var socket = socket({
+			return socket({
 				url: supportsWebSockets ? "/socket.io/websocket" : "/socket.io/xhr-polling",
 				headers: {
 					"Content-Type": "application/x-www-urlencoded"
@@ -20,7 +21,6 @@ define([
 					dojo.xhrPost(args);
 				}
 			});
-			return socket;
 		}
 	};
 });

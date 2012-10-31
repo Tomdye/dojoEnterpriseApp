@@ -1,12 +1,13 @@
 define([
 	"rishson/Globals",
 	"rishson/control/LoginResponse",
+	"rishson/control/SocketTransport",
 	"rishson/util/ObjectValidator",	//validate
 	"dojo/_base/lang",	// mixin, hitch
 	"dojo/_base/array",	// indexOf, forEach
 	"dojo/_base/declare",	// declare
 	"dojo/topic"	// publish/subscribe
-], function (Globals, LoginResponse, ObjectValidator, lang, arrayUtil, declare, topic) {
+], function (Globals, LoginResponse, SocketTransport, ObjectValidator, lang, arrayUtil, declare, topic) {
 	/**
 	 * @class
 	 * @name rishson.control.Dispatcher
@@ -69,7 +70,7 @@ define([
 		 * @constructor
 		 * @param {rishson.control.Transport} transport an implementation of rishson.control.Transport
 		 */
-		constructor: function (transport, socketTransport) {
+		constructor: function (transport, socketFactory) {
 			var criteria = [
 					{paramName: 'transport', paramType: 'object'}
 				],
@@ -80,8 +81,8 @@ define([
 			if (validator.validate(params)) {
 				this.transport = transport;
 
-				if (socketTransport) {
-					this.socketTransport = socketTransport;
+				if (socketFactory) {
+					this.socketTransport = new SocketTransport(socketFactory);
 				}
 
 				//decorate the transport with the response and error handling functions in this class (need hitching)
@@ -277,17 +278,15 @@ define([
 
 				if (app.websocket) {
 					this.socketTransport.createSocket(appId);
-
-					topic.subscribe(appURL + Globals.SOCKET_SUBSCRIBE, lang.hitch(this, function (appId, event) {
-						this.socketSubscribe(event, appId);
-					}, appId));
-
-					topic.subscribe(appURL + Globals.SOCKET_UNSUBSCRIBE, lang.hitch(this, function (appId, event) {
-						this.socketUnsubscribe(event, appId);
-					}, appId));
-
-					topic.subscribe(appURL + Globals.SOCKET_REGISTER_HANDLERS, lang.hitch(this, function (appId, eventHandlers) {
-						this.socketRegisterEventHandlers(eventHandlers, appId);
+					topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, type, request) {
+						switch (type) {
+						case "SUBSCRIBE": this.socketSubscribe(request, appId);
+							break;
+						case "UNSUBCRIBE": this.socketUnsubscribe(request, appId);
+							break;
+						case "REGISTER_HANDLERS": this.socketRegisterEventHandlers(request, appId);
+							break;
+						}
 					}, appId));
 				}
 			}

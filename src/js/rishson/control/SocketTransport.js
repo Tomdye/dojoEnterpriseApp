@@ -24,7 +24,7 @@ define([
 		},
 
 		createSocket: function (appId) {
-			this._sockets[appId] = this._socketFactory.create();
+			this._sockets[appId] = this._socketFactory.create(appId);
 		},
 
 		subscribe: function (appId, event) {
@@ -47,31 +47,37 @@ define([
 			var socket = this.getSocket(appId),
 				event,
 				handlerEvent,
+				handlerEventCallback,
 				i = 0,
 				length = eventHandlers.length;
 
-			// Register the event handlers for the apps socket
+			// Register the event handlers on the applications socket
 			if (socket) {
 				for (i; i < length; i += 1) {
 					event = eventHandlers[i].event;
-					handlerEvent = eventHandlers[i].handlerEvent;
+					handlerEvent = eventHandlers[i].handlerEvent,
+					handlerEventCallback = this._createEventHandlerCallback(appId, handlerEvent);
 
-					socket.on(event, this._createEventHandlerCallback(handlerEvent));
+					socket.on(event, handlerEventCallback);
 				}
 			}
 		},
 
-		_createEventHandlerCallback: function (handlerEvent) {
-			return lang.hitch(this, function (handlerEvent, data) {
+		_createEventHandlerCallback: function (appId, handlerEvent) {
+			// Create a closure callback that is passed the
+			// handlerEvent and the appId.
+			return lang.hitch(this, function (appId, handlerEvent, data) {
 				// If a function was passed as the handlerEvent we
 				// use this to calculate the event string.
-				// This is because the event is dynamic and usually dependent
-				// on some propery contained in the data i.e an id field.
+				// This is because the event can be dynamic and usually dependent
+				// on some propery contained in the data i.e an `id` property.
 				if (lang.isFunction(handlerEvent)) {
 					handlerEvent = handlerEvent(data);
 				}
+				handlerEvent = appId + "/" + handlerEvent; // Prepend namepsace
+
 				this.dispatch(handlerEvent, data);
-			}, handlerEvent);
+			}, appId, handlerEvent);
 		},
 
 		dispatch: function (event, data) {

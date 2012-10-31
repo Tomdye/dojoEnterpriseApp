@@ -4,7 +4,6 @@
 <head>
 	<title>doh.robot AppContainer Test</title>
 
-
 	<!-- required: dojo.js -->
 	<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
 	<script type="text/javascript" src="../../../../sinon/sinon-1.5.0.js"></script>
@@ -17,6 +16,7 @@
 	}
 
 	function newMockSocket () {
+		// Return a new object that socket
 		return new function () {
 			this.on = function (topic, callback) {};
 			this.emit = function (topic, data) {};
@@ -107,10 +107,10 @@
 					socket = newMockSocket();
 
 				sinon.stub(factory, "create").returns(socket);
-				var spy = sinon.spy(socket, "on");
+				var socketOn = sinon.spy(socket, "on");
 
 				var transport = new SocketTransport(factory),
-					dispatchSpy = sinon.spy(transport, "dispatch");
+					transportDispatch = sinon.spy(transport, "dispatch");
 
 				transport.createSocket("testId");
 
@@ -118,13 +118,13 @@
 					{ event: "case", handlerEvent: "case/123" }
 				]);
 
-				var callback = spy.args[0][1]; // Second argument of the first call
+				var callback = socketOn.args[0][1]; // Second argument of the first call (the callback)
 
-				// Execute callback - 'losely'simulating an event from the server
+				// Execute callback - (faking an event from the server)
 				callback("mockData");
 
-				doh.assertTrue(dispatchSpy.calledOnce);
-				doh.assertTrue(dispatchSpy.calledWith("case/123", "mockData"));
+				doh.assertTrue(transportDispatch.calledOnce);
+				doh.assertTrue(transportDispatch.calledWith("case/123", "mockData"));
 			}
 		}
 	]);
