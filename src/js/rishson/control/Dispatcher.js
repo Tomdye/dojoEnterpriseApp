@@ -1,7 +1,7 @@
 define([
 	"rishson/Globals",
 	"rishson/control/LoginResponse",
-	"rishson/control/SocketTransport",
+	"rishson/control/socket/SocketTransport",
 	"rishson/util/ObjectValidator",	//validate
 	"dojo/_base/lang",	// mixin, hitch
 	"dojo/_base/array",	// indexOf, forEach
@@ -112,16 +112,37 @@ define([
 			//auditing, analytics etc can be enabled here
 		},
 
-		socketSubscribe: function (event, appId) {
-			this.socketTransport.subscribe(appId, event);
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher.socketRegisterInterest
+		 * @param {rishson.control.SocketRequest} request
+		 * @param {string} appId
+		 * @description Informs the server that the application is interested in an event.
+		 */
+		socketRegisterInterest: function (request, appId) {
+			this.socketTransport.registerInterest(appId, request);
 		},
 
-		socketUnsubscribe: function (event, appId) {
-			this.socketTransport.unsubscribe(appId, event);
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher.socketDeregisterInterest
+		 * @param {rishson.control.SocketRequest} request
+		 * @param {string} appId
+		 * @description Informs the server that the application is no longer interested in an event.
+		 */
+		socketDeregisterInterest: function (request, appId) {
+			this.socketTransport.deregisterInterest(appId, request);
 		},
 
-		socketRegisterEventHandlers: function (eventHandlers, appId) {
-			this.socketTransport.registerEventHandlers(appId, eventHandlers);
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher.socketDeregisterInterest
+		 * @param {Array} eventHandlers
+		 * @param {string} appId
+		 * @description Binds the applications socket to listen to the passed events.
+		 */
+		socketRegisterEventHandlers: function (request, appId) {
+			this.socketTransport.registerEventHandlers(appId, request);
 		},
 
 		/**
@@ -219,8 +240,7 @@ define([
 		 * @private
 		 */
 		_processSuccessfulLoginResponse : function (response) {
-			var anyAppHasWebsocketEnabled = false,
-				loginResponse,
+			var loginResponse,
 				mixinObj = {},
 				index;
 
@@ -269,28 +289,47 @@ define([
 			for  (i; i < l; i += 1) {
 				app = apps[i];
 				appId = app.id.toLowerCase();
-				//create a tag value entry on the appObj where the key is the application id and the value the baseUrl
+
+				// Create a tag value entry on the appObj where the key is the application id
+				// and the value the baseUrl
 				appObj[appId] = app.baseUrl;
 				appURL = '/' + appId;
+
 				topic.subscribe(appURL + "/request/send", lang.hitch(this, function _send (appId, request) {
 					this.send(request, appId);
 				}, appId));
 
 				if (app.websocket) {
-					this.socketTransport.createSocket(appId);
-					topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, type, request) {
-						switch (type) {
-						case "SUBSCRIBE": this.socketSubscribe(request, appId);
-							break;
-						case "UNSUBCRIBE": this.socketUnsubscribe(request, appId);
-							break;
-						case "REGISTER_HANDLERS": this.socketRegisterEventHandlers(request, appId);
-							break;
-						}
-					}, appId));
+					this._setupSocketSubscriptionsForApp(appId, appURL);
 				}
 			}
 			return appObj;
+		},
+
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher._setupSocketSubscriptionsForApp
+		 * @description Sets up application wide listeners for application socket requests.
+		 * @param {string} appId Application id
+		 * @return {string} appURL A namespace formatted application id
+		 * @private
+		 */
+		_setupSocketSubscriptionsForApp: function (appId, appURL) {
+			this.socketTransport.createSocketForApp(appId);
+
+			topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, request) {
+				switch (request.type) {
+				case Globals.SOCKET_EVENTS.REGISTER_INTEREST:
+					this.socketRegisterInterest(request, appId);
+					break;
+				case Globals.SOCKET_EVENTS.DEREGISTER_INTEREST:
+					this.socketDeregisterInterest(request, appId);
+					break;
+				case Globals.SOCKET_EVENTS.REGISTER_HANDLERS:
+					this.socketRegisterEventHandlers(request.handlers, appId);
+					break;
+				}
+			}, appId));
 		}
 	});
 });

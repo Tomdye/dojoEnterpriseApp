@@ -51,6 +51,18 @@ define(["exports"], function (exports) {
 
 	/**
 	 * @field
+	 * @name rishson.Globals.SOCKET_EVENTS
+	 * @type {Object}
+	 * @description This namespace is prepended to every topic name
+	 */
+	exports.SOCKET_EVENTS = {
+		REGISTER_INTEREST: "register-interest",
+		DEREGISTER_INTEREST: "deregister-interest",
+		REGISTER_HANDLERS: "register-handlers"
+	};
+
+	/**
+	 * @field
 	 * @name rishson.Globals.UPDATE_ROUTE
 	 * @type {string}
 	 * @description The event to subscribe to when the route needs to be updated

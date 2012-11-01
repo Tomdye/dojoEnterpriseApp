@@ -3,10 +3,15 @@ define([
 ], function (socket) {
 	/**
 	 * @class
-	 * @name rishson.control.SocketIOSocketFactory
+	 * @name rishson.control.socket.SocketIOSocketFactory
 	 * @description
 	 */
 	return {
+		/**
+		 * @function
+		 * @name rishson.control.socket.SocketIOSocketFactory.create
+		 * @return {Object} A SocketIO socket
+		 */
 		create: function () {
 			var supportsWebSockets = (typeof WebSocket !== "undefined");
 
