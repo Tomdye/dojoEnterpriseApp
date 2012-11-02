@@ -13,4 +13,5 @@ define([
 ], function (doh, require) {
 	doh.registerUrl("AppContainer tests", require.toUrl("./view/TestAppContainer.html"), 999999);
 	doh.registerUrl("SocketTransport tests", require.toUrl("./control/TestSocketTransport.html"), 999999);
+	doh.registerUrl("Socket tests", require.toUrl("./control/TestSocket.html"), 999999);
 });

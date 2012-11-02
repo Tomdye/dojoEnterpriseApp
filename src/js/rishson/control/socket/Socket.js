@@ -84,10 +84,9 @@ define([
 		 * @function
 		 * @name rishson.control.socket.Socket._findInterested
 		 * @param {string} topic
-		 * @param {Object} data
 		 * @return {Array}
 		 */
-		_findInterested: function (topic, data) {
+		_findInterested: function (topic) {
 			return arrayUtil.filter(this._interests, function (interest) {
 				return !!(interest.event.topic === topic);
 
