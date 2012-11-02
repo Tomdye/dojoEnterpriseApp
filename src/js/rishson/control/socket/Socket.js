@@ -25,7 +25,7 @@ define([
 		 * @type {Object}
 		 * @description A map of interest events to callback functions.
 		 */
-		_eventCallbacks: null,
+		_interests: null,
 
 		/**
 		 * @constructor
@@ -33,7 +33,7 @@ define([
 		 */
 		constructor: function (socket) {
 			this._socket = socket;
-			this._eventCallbacks = {};
+			this._interests = [];
 		},
 
 		/**
@@ -60,59 +60,56 @@ define([
 
 		/**
 		 * @function
-		 * @name rishson.control.socket.Socket.addEventCallback
-		 * @param {string} event
-		 * @param {function} callback
+		 * @name rishson.control.socket.Socket.addInterest
+		 * @param {rishson.control.socket.SocketRequest} request
 		 */
-		addEventCallback: function (event, callback) {
-			this._eventCallbacks[event] = callback;
+		addInterest: function (request) {
+			this._interests.push(request);
 		},
 
 		/**
 		 * @function
-		 * @name rishson.control.socket.Socket.removeEventCallback
-		 * @param {string} event
+		 * @name rishson.control.socket.Socket.removeInterest
+		 * @param {rishson.control.socket.SocketRequest} request
 		 */
-		removeEventCallback: function (event) {
-			delete this._eventCallbacks[event];
+		removeInterest: function (request) {
+			var index = this._interests.indexOf(request);
+
+			if (index !== -1) {
+				this._interests.splice(index, 1);
+			}
 		},
 
 		/**
 		 * @function
-		 * @name rishson.control.socket.Socket.getEventCallback
-		 * @param {string} event
-		 * @return {function}
+		 * @name rishson.control.socket.Socket._findInterested
+		 * @param {string} topic
+		 * @param {Object} data
+		 * @return {Array}
 		 */
-		getEventCallback: function (event) {
-			return this._eventCallbacks[event];
+		_findInterested: function (topic, data) {
+			return arrayUtil.filter(this._interests, function (interest) {
+				return !!(interest.event.topic === topic);
+
+				// TODO: Validate data against interest.event.entity
+			});
 		},
 
 		/**
 		 * @function
-		 * @name rishson.control.socket.Socket.registerEvent
-		 * @param {string} event
-		 * @return {(string|function)} interestEvent This is usually a function to dynamically
-		 * generate the interestEvent. If it is a function it is passed the data from the server.
-		 * @description Registers an 'on' event for the socket. The callback checks if an
-		 * interest event has been registered for the response. If so it is executed and passed
+		 * @name rishson.control.socket.Socket.registerTopic
+		 * @param {string} topic
+		 * @description Registers an 'on' event for the socket. The callback checks if any requests
+		 * are interested and if so the requests callback is executed with the server payload.
 		 * the data.
 		 */
-		registerEvent: function (event, interestEvent) {
-			this.on(event, lang.hitch(this, function (data) {
-				var resolvedInterestEvent,
-					callback;
+		registerTopic: function (topic) {
+			this.on(topic, lang.hitch(this, function (data) {
+				var interested = this._findInterested(topic, data);
 
-				if (lang.isFunction(interestEvent)) {
-					resolvedInterestEvent = interestEvent(data);
-				} else {
-					resolvedInterestEvent = interestEvent;
-				}
-
-				callback = this.getEventCallback(resolvedInterestEvent);
-
-				if (callback) {
-					callback(data);
-				}
+				arrayUtil.forEach(interested, function (interest) {
+					interest.call(this, data.payload);
+				});
 			}));
 		}
 	});

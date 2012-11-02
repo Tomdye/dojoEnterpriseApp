@@ -58,7 +58,7 @@ define(["exports"], function (exports) {
 	exports.SOCKET_EVENTS = {
 		REGISTER_INTEREST: "register-interest",
 		DEREGISTER_INTEREST: "deregister-interest",
-		REGISTER_HANDLERS: "register-handlers"
+		REGISTER_TOPICS: "register-topics"
 	};
 
 	/**

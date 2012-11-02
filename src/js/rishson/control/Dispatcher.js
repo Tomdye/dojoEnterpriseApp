@@ -136,13 +136,13 @@ define([
 
 		/**
 		 * @function
-		 * @name rishson.control.Dispatcher.socketDeregisterInterest
-		 * @param {Array} eventHandlers
+		 * @name rishson.control.Dispatcher.socketRegisterTopics
+		 * @param {Array} topics
 		 * @param {string} appId
 		 * @description Binds the applications socket to listen to the passed events.
 		 */
-		socketRegisterEventHandlers: function (request, appId) {
-			this.socketTransport.registerEventHandlers(appId, request);
+		socketRegisterTopics: function (topics, appId) {
+			this.socketTransport.registerTopics(appId, topics);
 		},
 
 		/**
@@ -317,16 +317,16 @@ define([
 		_setupSocketSubscriptionsForApp: function (appId, appURL) {
 			this.socketTransport.createSocketForApp(appId);
 
-			topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, request) {
-				switch (request.type) {
+			topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, request, data) {
+				switch (request) {
 				case Globals.SOCKET_EVENTS.REGISTER_INTEREST:
-					this.socketRegisterInterest(request, appId);
+					this.socketRegisterInterest(data, appId);
 					break;
 				case Globals.SOCKET_EVENTS.DEREGISTER_INTEREST:
-					this.socketDeregisterInterest(request, appId);
+					this.socketDeregisterInterest(data, appId);
 					break;
-				case Globals.SOCKET_EVENTS.REGISTER_HANDLERS:
-					this.socketRegisterEventHandlers(request.handlers, appId);
+				case Globals.SOCKET_EVENTS.REGISTER_TOPICS:
+					this.socketRegisterTopics(data, appId);
 					break;
 				}
 			}, appId));

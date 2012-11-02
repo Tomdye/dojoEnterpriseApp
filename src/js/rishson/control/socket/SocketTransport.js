@@ -55,7 +55,7 @@ define([
 		 * @function
 		 * @name rishson.control.socket.SocketTransport.registerInterest
 		 * @param {string} appId
-		 * @param {rishson.control.SocketRequest} request
+		 * @param {rishson.control.socket.SocketRequest} request
 		 * @description Emits a register interest event to the server stating that we want to receive updates
 		 * on the supplied event.
 		 */
@@ -64,7 +64,7 @@ define([
 
 			if (socket) {
 				socket.emit(Globals.SOCKET_EVENTS.REGISTER_INTEREST, request.event);
-				socket.addEventCallback(request.event, request.callback);
+				socket.addInterest(request);
 			}
 		},
 
@@ -72,7 +72,7 @@ define([
 		 * @function
 		 * @name rishson.control.socket.SocketTransport.deregisterInterest
 		 * @param {string} appId
-		 * @param {rishson.control.SocketRequest} request
+		 * @param {rishson.control.socket.SocketRequest} request
 		 * @description Emits a deregister interest event to the server stating that we no longer want to
 		 * receive updates on the supplied event.
 		 */
@@ -81,25 +81,25 @@ define([
 
 			if (socket) {
 				socket.emit(Globals.SOCKET_EVENTS.DEREGISTER_INTEREST, request.event);
-				socket.removeEventCallback(request.event);
+				socket.removeInterest(request);
 			}
 		},
 
 		/**
 		 * @function
-		 * @name rishson.control.socket.SocketTransport.registerEventHandlers
+		 * @name rishson.control.socket.SocketTransport.registerTopics
 		 * @param {string} appId
-		 * @param {Array} eventHandlers
+		 * @param {Array} topics
 		 * @description Subscribes an applications socket to the supplied events.
 		 */
-		registerEventHandlers: function (appId, eventHandlers) {
+		registerTopics: function (appId, topics) {
 			var socket = this.getSocket(appId),
 				i = 0,
-				length = eventHandlers.length;
+				length = topics.length;
 
 			if (socket) {
 				for (i; i < length; i += 1) {
-					socket.registerEvent(eventHandlers[i].event, eventHandlers[i].interestEvent);
+					socket.registerTopic(topics[i]);
 				}
 			}
 		},
