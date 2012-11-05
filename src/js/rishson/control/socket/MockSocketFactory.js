@@ -1,6 +1,11 @@
 define([
 ], function () {
 
+	/**
+	 * @function
+	 * @name rishson.control.socket.MockSocketFactory.MockSocket
+	 * @description Mock socket implementation.
+	 */
 	var MockSocket = function () {
 		this._onEvents = [];
 
