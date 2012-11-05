@@ -1,13 +1,13 @@
 define([
 	"rishson/Globals",
 	"rishson/control/LoginResponse",
+	"rishson/control/socket/SocketTransport",
 	"rishson/util/ObjectValidator",	//validate
-	"rishson/control/PushHandler",
 	"dojo/_base/lang",	// mixin, hitch
 	"dojo/_base/array",	// indexOf, forEach
 	"dojo/_base/declare",	// declare
 	"dojo/topic"	// publish/subscribe
-], function (Globals, LoginResponse, ObjectValidator, PushHandler, lang, arrayUtil, declare, topic) {
+], function (Globals, LoginResponse, SocketTransport, ObjectValidator, lang, arrayUtil, declare, topic) {
 	/**
 	 * @class
 	 * @name rishson.control.Dispatcher
@@ -22,6 +22,14 @@ define([
 		 * @description an implementation of rishson.control.Transport
 		 */
 		transport: null,
+
+		/**
+		 * @field
+		 * @name rishson.control.Dispatcher.socketTransport
+		 * @type {rishson.control.SocketTransport}
+		 * @description The socket transport layer used to communicate with a socket adapter
+		 */
+		socketTransport: null,
 
 		/**
 		 * @field
@@ -62,20 +70,20 @@ define([
 		 * @constructor
 		 * @param {rishson.control.Transport} transport an implementation of rishson.control.Transport
 		 */
-		constructor: function (transport) {
+		constructor: function (transport, socketFactory) {
 			var criteria = [
 					{paramName: 'transport', paramType: 'object'}
 				],
 				validator = new ObjectValidator(criteria),
-				params = {'transport': transport},
-				unwrappedParams;
+				params = {'transport': transport};
 
 			//collect up the params and validate
 			if (validator.validate(params)) {
-				//unwrap the object contents for validation and to do a mixin
-				unwrappedParams = {'transport': transport};
+				this.transport = transport;
 
-				lang.mixin(this, unwrappedParams);
+				if (socketFactory) {
+					this.socketTransport = new SocketTransport(socketFactory);
+				}
 
 				//decorate the transport with the response and error handling functions in this class (need hitching)
 				this.transport.addResponseFunctions(lang.hitch(this, this.handleResponse),
@@ -106,6 +114,39 @@ define([
 
 		/**
 		 * @function
+		 * @name rishson.control.Dispatcher.socketRegisterInterest
+		 * @param {rishson.control.SocketRequest} request
+		 * @param {string} appId
+		 * @description Informs the server that the application is interested in an event.
+		 */
+		socketRegisterInterest: function (request, appId) {
+			this.socketTransport.registerInterest(appId, request);
+		},
+
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher.socketDeregisterInterest
+		 * @param {rishson.control.SocketRequest} request
+		 * @param {string} appId
+		 * @description Informs the server that the application is no longer interested in an event.
+		 */
+		socketDeregisterInterest: function (request, appId) {
+			this.socketTransport.deregisterInterest(appId, request);
+		},
+
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher.socketRegisterTopics
+		 * @param {Array} topics
+		 * @param {string} appId
+		 * @description Binds the applications socket to listen to the passed events.
+		 */
+		socketRegisterTopics: function (topics, appId) {
+			this.socketTransport.registerTopics(appId, topics);
+		},
+
+		/**
+		 * @function
 		 * @name rishson.control.Dispatcher.handleResponse
 		 * @param {Object} request an object that is the original request to the server
 		 * @param {rishson.control.Response} response an object that is the server response
@@ -119,7 +160,7 @@ define([
 			if (!this._haveProcessedLoginResponse) {
 				if (this._isSuccessfulLoginResponse(response)) {
 					response = this._processSuccessfulLoginResponse(response);
-					apps = this._setupApplicationUrls(response.apps);
+					apps = this._setupApplicationSubscriptions(response.apps);
 					this.transport.bindApplicationUrls(apps);
 					this._haveProcessedLoginResponse = true;	//we only need to do this once
 				}
@@ -199,8 +240,7 @@ define([
 		 * @private
 		 */
 		_processSuccessfulLoginResponse : function (response) {
-			var anyAppHasWebsocketEnabled = false,
-				loginResponse,
+			var loginResponse,
 				mixinObj = {},
 				index;
 
@@ -211,17 +251,6 @@ define([
 					returnRequest: loginResponse.returnRequest
 				};
 				lang.mixin(this, mixinObj);
-
-				//check if any app needs to use websocket and if so initialise cometd
-				arrayUtil.some(loginResponse.apps, function (app) {
-					if (app.websocket){
-						anyAppHasWebsocketEnabled = true;
-					}
-				}, this);
-
-				if (anyAppHasWebsocketEnabled) {
-					this._pushHandler = new PushHandler(this.transport.baseUrl);
-				}
 
 				//convert authorities to lower case so we can do case-insensitive search for authorities
 				arrayUtil.forEach(this.grantedAuthorities, function (authority) {
@@ -243,32 +272,64 @@ define([
 
 		/**
 		 * @function
-		 * @name rishson.control.Dispatcher._setupApplicationUrls
+		 * @name rishson.control.Dispatcher._setupApplicationSubscriptions
 		 * @description Subscribe to request/send events for child applications from loginResponse.
 		 * @param {object} apps a list of application objects
 		 * @return {object} the list of apps with all but the name and baseUrl removed
 		 * @private
 		 */
-		_setupApplicationUrls: function (apps) {
+		_setupApplicationSubscriptions: function (apps) {
 			var i = 0,
 				l = apps.length,
-				sendTopicSuffix = '/request/send',
 				app,
 				appId,
-				url,
+				appURL,
 				appObj = {};
 
 			for  (i; i < l; i += 1) {
 				app = apps[i];
 				appId = app.id.toLowerCase();
-				//create a tag value entry on the appObj where the key is the application id and the value the baseUrl
+
+				// Create a tag value entry on the appObj where the key is the application id
+				// and the value the baseUrl
 				appObj[appId] = app.baseUrl;
-				url = '/' + appId + sendTopicSuffix;
-				topic.subscribe(url, lang.hitch(this, function _send (appId, request) {
+				appURL = '/' + appId;
+
+				topic.subscribe(appURL + "/request/send", lang.hitch(this, function _send (appId, request) {
 					this.send(request, appId);
 				}, appId));
+
+				if (app.websocket) {
+					this._setupSocketSubscriptionsForApp(appId, appURL);
+				}
 			}
 			return appObj;
+		},
+
+		/**
+		 * @function
+		 * @name rishson.control.Dispatcher._setupSocketSubscriptionsForApp
+		 * @description Sets up application wide listeners for application socket requests.
+		 * @param {string} appId Application id
+		 * @return {string} appURL A namespace formatted application id
+		 * @private
+		 */
+		_setupSocketSubscriptionsForApp: function (appId, appURL) {
+			this.socketTransport.createSocketForApp(appId);
+
+			topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, request, data) {
+				switch (request) {
+				case Globals.SOCKET_EVENTS.REGISTER_INTEREST:
+					this.socketRegisterInterest(data, appId);
+					break;
+				case Globals.SOCKET_EVENTS.DEREGISTER_INTEREST:
+					this.socketDeregisterInterest(data, appId);
+					break;
+				case Globals.SOCKET_EVENTS.REGISTER_TOPICS:
+					this.socketRegisterTopics(data, appId);
+					break;
+				}
+			}, appId));
 		}
 	});
 });

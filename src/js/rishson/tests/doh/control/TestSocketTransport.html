@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>SocketTransport tests</title>
+
+	<!-- required: dojo.js -->
+	<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
+	<script type="text/javascript" src="../../vendor/sinon-1.5.0.js"></script>
+	<script type="text/javascript">
+
+	require([
+		"doh",
+		"rishson/control/socket/SocketTransport",
+		"rishson/Globals",
+		"rishson/control/socket/MockSocketFactory",
+		"dojo/domReady!"
+	], function (doh, SocketTransport, Globals, MockSocketFactory) {
+		doh.register("SocketTransport tests", [
+		{
+			name: "Instantiation with mock socket factory",
+			runTest: function () {
+				doh.assertTrue(new SocketTransport(MockSocketFactory));
+			}
+		},
+		{
+			name: "Can create a new socket for an application",
+			runTest: function () {
+				var transport = new SocketTransport(MockSocketFactory);
+				var spy = sinon.spy(transport, "addSocket");
+
+				transport.createSocketForApp("testId");
+
+				doh.assertTrue(spy.calledWith("testId"));
+			}
+		},
+		{
+			name: "Registers an event handler for the applications socket",
+			runTest: function () {
+				var transport = new SocketTransport(MockSocketFactory);
+				transport.createSocketForApp("testAppId");
+
+				var socket = window.mockSockets.testAppId;
+				var spy = sinon.spy(socket, "on");
+
+				transport.registerTopics("testAppId", [
+					"testEvent"
+				]);
+
+				doh.assertTrue(spy.calledOnce);
+				doh.assertTrue(spy.calledWith("testEvent"));
+			}
+		},
+		{
+			name: "Can register an interest for a socket",
+			runTest: function () {
+				var transport = new SocketTransport(MockSocketFactory);
+
+				transport.createSocketForApp("testAppId");
+				var socket = window.mockSockets.testAppId;
+				var spy = sinon.spy(socket, "emit");
+
+				transport.registerInterest("testAppId", { event: "testEvent" });
+
+				doh.assertTrue(spy.calledOnce);
+				doh.assertTrue(spy.calledWith(Globals.SOCKET_EVENTS.REGISTER_INTEREST, "testEvent"));
+			}
+		},
+		{
+				name: "Can deregister an interest for a socket",
+				runTest: function () {
+					var transport = new SocketTransport(MockSocketFactory);
+					transport.createSocketForApp("testAppId");
+
+					var socket = window.mockSockets.testAppId;
+					var spy = sinon.spy(socket, "emit");
+
+					transport.deregisterInterest("testAppId", { event: "testEvent" });
+
+					doh.assertTrue(spy.calledOnce);
+					doh.assertTrue(spy.calledWith(Globals.SOCKET_EVENTS.DEREGISTER_INTEREST, "testEvent"));
+				}
+		},
+		{
+			name: "Can register multiple event handlers for a socket",
+			runTest: function () {
+				var transport = new SocketTransport(MockSocketFactory);
+				transport.createSocketForApp("testAppId");
+
+				var socket = window.mockSockets.testAppId;
+				var spy = sinon.spy(socket, "on");
+
+				transport.registerTopics("testAppId", [
+					"testEvent",
+					"testEvent"
+				]);
+
+				doh.assertTrue(spy.calledTwice);
+				doh.assertTrue(spy.calledWith("testEvent"));
+			}
+		}
+	]);
+	doh.run();
+	});
+	</script>
+</head>
+</html>
