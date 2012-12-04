@@ -9,21 +9,24 @@ define([
 	return declare('rishson.control.SocketRequest', null, {
 		/**
 		 * @field
-		 * @name rishson.control.socket.SocketRequest.event
-		 * @type {Object}
-		 * @description The event encapsulates the topic to register an interest on.
-		 * Must include a topic and any other key / value pairs that need to be registered on the server.
-		 * 		{
-		 * 			topic: <topic name>
-		 * 			id: 123 // Example key value pair
-		 * 		}
+		 * @name rishson.control.socket.SocketRequest.topic
+		 * @type {string}
+		 * @description
 		 */
-		event: null,
+		topic: null,
+
+		/**
+		 * @field
+		 * @name rishson.control.socket.SocketRequest.identifier
+		 * @type {string}
+		 * @description
+		 */
+		identifier: null,
 
 		/**
 		 * @field
 		 * @name rishson.control.socket.SocketRequest.callback
-		 * @type {function(Object)}
+		 * @type {function(*)}
 		 * @description The callback excecuted when a registered interest event is received.
 		 * Passed the payload received from the server.
 		 */
@@ -31,11 +34,26 @@ define([
 
 		/**
 		 * @constructor
-		 * @field parameters {Object}
+		 * @field {topic} string
+		 * @field {topic} string
+		 * @field {function(*)} callback
 		 */
-		constructor: function (parameters) {
-			this.event = parameters.event;
-			this.callback = parameters.callback;
+		constructor: function (topic, identifier, callback) {
+			this.topic = topic;
+			this.identifier = identifier;
+			this.callback = callback;
+		},
+
+		/**
+		 * @field
+		 * @name rishson.control.socket.SocketRequest.toJSON
+		 * @return {Object}
+		 */
+		toJSON: function () {
+			return {
+				topic: this.topic,
+				identifier: this.identifier
+			};
 		}
 	});
 });

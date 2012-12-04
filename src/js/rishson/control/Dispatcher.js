@@ -26,7 +26,7 @@ define([
 		/**
 		 * @field
 		 * @name rishson.control.Dispatcher.socketTransport
-		 * @type {rishson.control.SocketTransport}
+		 * @type {rishson.control.socket.SocketTransport}
 		 * @description The socket transport layer used to communicate with a socket adapter
 		 */
 		socketTransport: null,
@@ -115,7 +115,7 @@ define([
 		/**
 		 * @function
 		 * @name rishson.control.Dispatcher.socketRegisterInterest
-		 * @param {rishson.control.SocketRequest} request
+		 * @param {rishson.control.socket.SocketRequest} request
 		 * @param {string} appId
 		 * @description Informs the server that the application is interested in an event.
 		 */
@@ -126,7 +126,7 @@ define([
 		/**
 		 * @function
 		 * @name rishson.control.Dispatcher.socketDeregisterInterest
-		 * @param {rishson.control.SocketRequest} request
+		 * @param {rishson.control.socket.SocketRequest} request
 		 * @param {string} appId
 		 * @description Informs the server that the application is no longer interested in an event.
 		 */
@@ -300,7 +300,7 @@ define([
 				}, appId));
 
 				if (app.websocket) {
-					this._setupSocketSubscriptionsForApp(appId, appURL);
+					this._setupSocketSubscriptionsForApp(appId, appURL, app.baseUrl);
 				}
 			}
 			return appObj;
@@ -311,11 +311,12 @@ define([
 		 * @name rishson.control.Dispatcher._setupSocketSubscriptionsForApp
 		 * @description Sets up application wide listeners for application socket requests.
 		 * @param {string} appId Application id
-		 * @return {string} appURL A namespace formatted application id
+		 * @param {string} appURL A namespace formatted application id
+		 * @param {string} baseUrl
 		 * @private
 		 */
-		_setupSocketSubscriptionsForApp: function (appId, appURL) {
-			this.socketTransport.createSocketForApp(appId);
+		_setupSocketSubscriptionsForApp: function (appId, appURL, baseUrl) {
+			this.socketTransport.createSocketForApp(appId, baseUrl);
 
 			topic.subscribe(appURL + Globals.SOCKET_REQUEST, lang.hitch(this, function (appId, request, data) {
 				switch (request) {

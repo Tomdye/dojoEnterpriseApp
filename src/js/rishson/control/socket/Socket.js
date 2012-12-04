@@ -2,9 +2,8 @@ define([
 	"rishson/Globals",
 	"dojo/_base/lang",
 	"dojo/_base/array",
-	"dojo/_base/declare",
-	"dojo/topic"
-], function (Globals, lang, arrayUtil, declare, topic) {
+	"dojo/_base/declare"
+], function (Globals, lang, arrayUtil, declare) {
 	/**
 	 * @class
 	 * @name rishson.control.socket.Socket
@@ -15,17 +14,16 @@ define([
 		 * @field
 		 * @name rishson.control.socket.Socket._socket
 		 * @type {Object}
-		 * @description The real socket implementation.
+		 * @description The actual socket implementation.
 		 */
 		_socket: null,
 
 		/**
 		 * @field
-		 * @name rishson.control.socket.Socket._eventCallbacks
-		 * @type {Object}
-		 * @description A map of interest events to callback functions.
+		 * @name rishson.control.socket.Socket._socketRequests
+		 * @type {Array.<rishson.control.socket.SocketRequest>}
 		 */
-		_interests: null,
+		_socketRequests: null,
 
 		/**
 		 * @constructor
@@ -33,7 +31,7 @@ define([
 		 */
 		constructor: function (socket) {
 			this._socket = socket;
-			this._interests = [];
+			this._socketRequests = [];
 		},
 
 		/**
@@ -64,7 +62,7 @@ define([
 		 * @param {rishson.control.socket.SocketRequest} request
 		 */
 		addInterest: function (request) {
-			this._interests.push(request);
+			this._socketRequests.push(request);
 		},
 
 		/**
@@ -73,10 +71,10 @@ define([
 		 * @param {rishson.control.socket.SocketRequest} request
 		 */
 		removeInterest: function (request) {
-			var index = this._interests.indexOf(request);
+			var index = this._socketRequests.indexOf(request);
 
-			if (index !== -1) {
-				this._interests.splice(index, 1);
+			if (index > -1) {
+				this._socketRequests.splice(index, 1);
 			}
 		},
 
@@ -84,13 +82,11 @@ define([
 		 * @function
 		 * @name rishson.control.socket.Socket._findInterested
 		 * @param {string} topic
-		 * @return {Array}
+		 * @return {Array.<rishson.control.socket.SocketRequest>}
 		 */
-		_findInterested: function (topic) {
-			return arrayUtil.filter(this._interests, function (interest) {
-				return !!(interest.event.topic === topic);
-
-				// TODO: Validate data against interest.event.entity
+		_getSocketRequestsForTopic: function (topic) {
+			return arrayUtil.filter(this._socketRequests, function (request) {
+				return (request.topic === topic);
 			});
 		},
 
@@ -98,18 +94,26 @@ define([
 		 * @function
 		 * @name rishson.control.socket.Socket.registerTopic
 		 * @param {string} topic
-		 * @description Registers an 'on' event for the socket. The callback checks if any requests
-		 * are interested and if so the requests callback is executed with the server payload.
-		 * the data.
+		 * @description Registers an 'on' event for the socket, binding the appropriate callback.
 		 */
 		registerTopic: function (topic) {
-			this.on(topic, lang.hitch(this, function (data) {
-				var interested = this._findInterested(topic, data);
+			this.on(topic, lang.hitch(this, "_callSocketRequestCallbacks", topic));
+		},
 
-				arrayUtil.forEach(interested, function (interest) {
-					interest.call(this, data.payload);
-				});
-			}));
+		/**
+		 * @function
+		 * @name rishson.control.socket.Socket.registerTopic
+		 * @param {string} topic
+		 * @param {*} data
+		 * @description Checks if any current requests match the given topic, if so the requests
+		 * callback is executed with the given payload.
+		 */
+		_callSocketRequestCallbacks: function (topic, data) {
+			var socketRequests = this._getSocketRequestsForTopic(topic);
+
+			arrayUtil.forEach(socketRequests, function (request) {
+				request.callback.call(this, data);
+			});
 		}
 	});
 });
