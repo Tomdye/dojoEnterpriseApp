@@ -1,6 +1,6 @@
 define([
-	"dojox/socket"
-], function (socket) {
+	"socket-io/dist/socket.io"
+], function (socketio) {
 	/**
 	 * @class
 	 * @name rishson.control.socket.SocketIOSocketFactory
@@ -10,22 +10,11 @@ define([
 		/**
 		 * @function
 		 * @name rishson.control.socket.SocketIOSocketFactory.create
+		 * @param {string} baseUrl
 		 * @return {Object} A SocketIO socket
 		 */
-		create: function () {
-			var supportsWebSockets = (typeof WebSocket !== "undefined");
-
-			//noinspection JSValidateTypes
-			return socket({
-				url: supportsWebSockets ? "/socket.io/websocket" : "/socket.io/xhr-polling",
-				headers: {
-					"Content-Type": "application/x-www-urlencoded"
-				},
-				transport: function (args, message) {
-					args.content = message;
-					dojo.xhrPost(args);
-				}
-			});
+		create: function (baseUrl) {
+			return socketio.connect(baseUrl);
 		}
 	};
 });

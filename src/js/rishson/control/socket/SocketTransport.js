@@ -23,7 +23,7 @@ define([
 		/**
 		 * @field
 		 * @name rishson.control.socket.SocketTransport._sockets
-		 * @type {Object}
+		 * @type {Object.<string, rishson.control.socket.Socket>}
 		 * @description A map of application id's to sockets.
 		 */
 		_sockets: null,
@@ -44,9 +44,10 @@ define([
 		 * @function
 		 * @name rishson.control.socket.SocketTransport.createSocketForApp
 		 * @param {string} appId
+		 * @param {string} baseUrl
 		 */
-		createSocketForApp: function (appId) {
-			var socket = this._socketFactory.create(appId);
+		createSocketForApp: function (appId, baseUrl) {
+			var socket = this._socketFactory.create(baseUrl);
 
 			this.addSocket(appId, new Socket(socket));
 		},
@@ -63,7 +64,7 @@ define([
 			var socket = this.getSocket(appId);
 
 			if (socket) {
-				socket.emit(Globals.SOCKET_EVENTS.REGISTER_INTEREST, request.event);
+				socket.emit(Globals.SOCKET_EVENTS.REGISTER_INTEREST, request.toJSON());
 				socket.addInterest(request);
 			}
 		},
@@ -80,7 +81,7 @@ define([
 			var socket = this.getSocket(appId);
 
 			if (socket) {
-				socket.emit(Globals.SOCKET_EVENTS.DEREGISTER_INTEREST, request.event);
+				socket.emit(Globals.SOCKET_EVENTS.DEREGISTER_INTEREST, request.toJSON());
 				socket.removeInterest(request);
 			}
 		},
@@ -89,7 +90,7 @@ define([
 		 * @function
 		 * @name rishson.control.socket.SocketTransport.registerTopics
 		 * @param {string} appId
-		 * @param {Array} topics
+		 * @param {Array.<string>} topics
 		 * @description Subscribes an applications socket to the supplied events.
 		 */
 		registerTopics: function (appId, topics) {
@@ -108,7 +109,7 @@ define([
 		 * @function
 		 * @name rishson.control.socket.SocketTransport.addSocket
 		 * @param {string} appId
-		 * @param {rishson.control.socket,Socket} socket
+		 * @param {rishson.control.socket.Socket} socket
 		 */
 		addSocket: function (appId, socket) {
 			this._sockets[appId] = socket;
@@ -119,7 +120,7 @@ define([
 		 * @name rishson.control.socket.SocketTransport.getSocket
 		 * @param {string} appId
 		 * @description Returns an applications socket.
-		 * @return {rishson.control.Socket}
+		 * @return {rishson.control.socket.Socket}
 		 */
 		getSocket: function (appId) {
 			return this._sockets[appId];

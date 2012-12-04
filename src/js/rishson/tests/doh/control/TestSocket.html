@@ -59,9 +59,9 @@
 						runTest: function () {
 							var socket = new Socket(newFakeSocket());
 
-							socket.addInterest(new SocketRequest({}));
+							socket.addInterest(new SocketRequest());
 
-							doh.assertEqual(1, socket._interests.length);
+							doh.assertEqual(1, socket._socketRequests.length);
 						}
 					},
 					{
@@ -71,10 +71,10 @@
 								request = new SocketRequest({});
 
 							socket.addInterest(request);
-							doh.assertEqual(1, socket._interests.length);
+							doh.assertEqual(1, socket._socketRequests.length);
 							socket.removeInterest(request);
 
-							doh.assertEqual(0, socket._interests.length);
+							doh.assertEqual(0, socket._socketRequests.length);
 						}
 					}
 				]);

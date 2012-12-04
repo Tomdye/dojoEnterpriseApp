@@ -25,16 +25,17 @@ define([
 	 * @description
 	 */
 	return {
-		create: function (appId) {
+		create: function (baseUrl) {
 			// Bind all mock sockets to the window
 			// so we can inject fake events into the application
 			if (!window.mockSockets) {
 				window.mockSockets = {};
 			}
 
-			var socket = new MockSocket();
+			var socket = new MockSocket(),
+				app = baseUrl.split("/")[0]; // Use a friendly identifier for mocking
 
-			window.mockSockets[appId] = socket;
+			window.mockSockets[app] = socket;
 
 			return socket;
 		}
