@@ -160,6 +160,10 @@ define([
 			if (!this._haveProcessedLoginResponse) {
 				if (this._isSuccessfulLoginResponse(response)) {
 					response = this._processSuccessfulLoginResponse(response);
+					// Put the isOk boolean back in
+					// we can assume it's ok as the isSuccessful call
+					// passed on the line previous.
+					response.isOk = true;
 					apps = this._setupApplicationSubscriptions(response.apps);
 					this.transport.bindApplicationUrls(apps);
 					this._haveProcessedLoginResponse = true;	//we only need to do this once

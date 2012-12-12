@@ -92,7 +92,6 @@ define([
 					throw ('Invalid server response. No payload.');
 				}
 			}
-			lang.mixin(this, response);
 		},
 
 		/**
