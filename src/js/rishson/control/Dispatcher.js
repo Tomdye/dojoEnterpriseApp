@@ -157,17 +157,11 @@ define([
 				topicData,
 				apps;
 
-			if (!this._haveProcessedLoginResponse) {
-				if (this._isSuccessfulLoginResponse(response)) {
-					response = this._processSuccessfulLoginResponse(response);
-					// Put the isOk boolean back in
-					// we can assume it's ok as the isSuccessful call
-					// passed on the line previous.
-					response.isOk = true;
-					apps = this._setupApplicationSubscriptions(response.apps);
-					this.transport.bindApplicationUrls(apps);
-					this._haveProcessedLoginResponse = true;	//we only need to do this once
-				}
+			if (!this._haveProcessedLoginResponse && this._isSuccessfulLoginResponse(response)) {
+				response.payload = this._processSuccessfulLoginResponse(response);
+				apps = this._setupApplicationSubscriptions(response.payload.apps);
+				this.transport.bindApplicationUrls(apps);
+				this._haveProcessedLoginResponse = true;	//we only need to do this once
 			}
 
 			//if the request has a topic specified then publish the response to the topic
